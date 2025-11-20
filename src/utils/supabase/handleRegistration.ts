@@ -1,7 +1,7 @@
 "use server"
 import { createClient } from "./serverClient"
 
-export async function handleUserSignUp(phoneNumber: string) {
+export async function handleUserSignIn(phoneNumber: string) {
     const supabase = await createClient();
     const {data, error} = await supabase.auth.signInWithOtp({
         phone: phoneNumber
