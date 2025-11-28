@@ -2,7 +2,7 @@ import { themeClasses } from "@/utils/theme";
 import { useState } from "react";
 
 interface ProfilePhotoFormProps {
-  onComplete: () => void;
+  onComplete: (file: File | null) => void;
 }
 
 export default function ProfilePhotoForm({ onComplete }: ProfilePhotoFormProps) {
@@ -23,9 +23,7 @@ export default function ProfilePhotoForm({ onComplete }: ProfilePhotoFormProps) 
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    // Profile photo handling would go here (not saving to state as per requirements)
-    // For now, just complete the form
-    onComplete();
+    onComplete(selectedFile);
   }
 
   return (

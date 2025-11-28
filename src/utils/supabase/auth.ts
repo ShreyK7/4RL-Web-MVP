@@ -1,5 +1,5 @@
-"use server"
-import { createClient } from "./serverClient"
+"use server";
+import { createClient } from "./serverClient";
 
 export async function handleUserSignIn(phoneNumber: string) {
     const supabase = await createClient();
@@ -9,7 +9,7 @@ export async function handleUserSignIn(phoneNumber: string) {
     if (error) {
         return { error };
     }
-    console.log(data)
+    console.log(data);
     return { data };
 }
 
@@ -23,7 +23,6 @@ export async function handleOTP(OTPCode: string, phoneNumber: string) {
     if (error) {
         return { error };
     }
-    
-    console.log(session)
-    return { session }
+    console.log(session);
+    return { session };
 }

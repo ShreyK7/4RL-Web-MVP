@@ -1,20 +1,27 @@
 "use client";
-import SignupForm from "@/components/auth/signup";
-import OTPForm from "@/components/auth/otp";
-import PersonalInfoForm from "@/components/auth/personalInfoForm";
-import AboutMeForm from "@/components/auth/aboutMeForm";
-import InterestsForm from "@/components/auth/interestsForm";
-import ProfilePhotoForm from "@/components/auth/profilePhotoForm";
-import { handleUserSignIn, handleOTP } from "@/utils/supabase/handleRegistration";
+import SignupForm from "@/components/onboarding/signup";
+import OTPForm from "@/components/onboarding/otp";
+import PersonalInfoForm from "@/components/onboarding/personalInfoForm";
+import AboutMeForm from "@/components/onboarding/aboutMeForm";
+import InterestsForm from "@/components/onboarding/interestsForm";
+import ProfilePhotoForm from "@/components/onboarding/profilePhotoForm";
+
+import { handleUserSignIn, handleOTP } from "@/utils/supabase/auth";
+import { uploadProfileData } from "@/utils/supabase/lib";
+
 import { themeClasses } from "@/utils/theme";
+import { Pronouns } from "@/utils/types/userDataTypes";
+
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { profile } from "console";
 
 type FormStep = "phone" | "otp" | "personalInfo" | "aboutMe" | "interests" | "profilePhoto" | "complete";
 
 export default function SignUpPage() {
     const router = useRouter();
     const [step, setStep] = useState<FormStep>("phone");
+    const [dataUploaded, setDataUploaded] = useState(false)
     const [errorMessage, setErrorMessage] = useState("");
     const [phoneNumber, setPhoneNumber] = useState("");
     
@@ -22,10 +29,10 @@ export default function SignUpPage() {
     const [personalInfo, setPersonalInfo] = useState<{
         name: string;
         age: string;
-        pronouns: string;
+        pronouns: Pronouns;
         hometown: string;
         baseCity: string;
-    } | null>(null);
+    }>({name: "", age: "", pronouns: "", hometown: "", baseCity: ""});
     const [aboutMe, setAboutMe] = useState<string>("");
     const [interests, setInterests] = useState<string[]>([]);
 
@@ -56,7 +63,7 @@ export default function SignUpPage() {
     function handlePersonalInfoNext(data: {
         name: string;
         age: string;
-        pronouns: string;
+        pronouns: Pronouns;
         hometown: string;
         baseCity: string;
     }) {
@@ -74,22 +81,38 @@ export default function SignUpPage() {
         setStep("profilePhoto");
     }
 
-    function handleProfilePhotoComplete() {
+    async function handleProfilePhotoComplete(profilePhoto: File | null) {
+        await uploadUserProfileData();
+        //await uploadUserProfilePicture(profilePhoto)
         setStep("complete");
-        // In a real app, you would submit all the data here
-        console.log("Form data:", {
-            phoneNumber,
-            personalInfo,
-            aboutMe,
-            interests,
+    }
+
+    async function uploadUserProfileData() {
+        const name = personalInfo.name;
+        const age = parseInt(personalInfo.age);
+        const pronouns = personalInfo.pronouns;
+        const hometown = personalInfo.hometown;
+        const baseCity = personalInfo.baseCity;
+        await uploadProfileData({
+            name: name, 
+            age: age, 
+            pronouns: pronouns, 
+            hometown: hometown, 
+            baseCity: baseCity,
+            about: aboutMe,
+            interests: interests
         });
+    }
+
+    async function uploadUserProfilePicture(profilePhoto: File | null) {
+
     }
 
     // Redirect after completion
     useEffect(() => {
         if (step === "complete") {
             const timer = setTimeout(() => {
-                router.push("/");
+                router.push("/home");
             }, 2000);
             return () => clearTimeout(timer);
         }

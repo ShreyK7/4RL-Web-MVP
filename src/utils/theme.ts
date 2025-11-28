@@ -128,4 +128,3 @@ export const theme = {
     card: "rounded-lg",
   },
 } as const;
-

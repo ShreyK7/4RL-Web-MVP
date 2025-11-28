@@ -1,10 +1,11 @@
 import { themeClasses } from "@/utils/theme";
+import { Pronouns } from "@/utils/types/userDataTypes";
 
 interface PersonalInfoFormProps {
   onNext: (data: {
     name: string;
     age: string;
-    pronouns: string;
+    pronouns: Pronouns;
     hometown: string;
     baseCity: string;
   }) => void;
@@ -18,7 +19,7 @@ export default function PersonalInfoForm({ onNext }: PersonalInfoFormProps) {
     const data = {
       name: formData.get("name") as string,
       age: formData.get("age") as string,
-      pronouns: formData.get("pronouns") as string,
+      pronouns: formData.get("pronouns") as Pronouns,
       hometown: formData.get("hometown") as string,
       baseCity: formData.get("baseCity") as string,
     };
@@ -53,13 +54,18 @@ export default function PersonalInfoForm({ onNext }: PersonalInfoFormProps) {
           required
           className={themeClasses.input.base}
         />
-        <input
-          type="text"
+        <select
           name="pronouns"
-          placeholder="Pronouns (e.g., she/her, he/him, they/them)"
           required
           className={themeClasses.input.base}
-        />
+          defaultValue=""
+        >
+          <option value="" disabled>Select pronouns</option>
+          <option value="he/him/his">he/him/his</option>
+          <option value="she/her/hers">she/her/hers</option>
+          <option value="they/them/theirs">they/them/theirs</option>
+          <option value="other">other</option>
+        </select>
         <input
           type="text"
           name="hometown"

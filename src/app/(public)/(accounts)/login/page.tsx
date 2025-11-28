@@ -1,7 +1,7 @@
 "use client";
-import LoginForm from "@/components/auth/login";
-import OTPForm from "@/components/auth/otp";
-import { handleUserSignIn, handleOTP } from "@/utils/supabase/handleRegistration";
+import LoginForm from "@/components/onboarding/login";
+import OTPForm from "@/components/onboarding/otp";
+import { handleUserSignIn, handleOTP } from "@/utils/supabase/auth";
 import { themeClasses } from "@/utils/theme";
 import { useState } from "react";
 import { redirect } from "next/navigation";
@@ -30,7 +30,7 @@ export default function LoginPage() {
         if (result.error) {
             setErrorMessage(result.error.message || "An error occured when validating your code");
         } else {
-            redirect("/");
+            redirect("/home");
         }
     }
 
