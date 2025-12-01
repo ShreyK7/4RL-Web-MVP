@@ -1,7 +1,5 @@
-"use client";
+import { redirect } from "next/navigation";
 
 export default function Home() {
-  return (
-    <h1>You are authenticated</h1>
-  );
+  redirect("/home");
 }

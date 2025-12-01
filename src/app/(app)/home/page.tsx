@@ -1,12 +1,14 @@
 import DropToggleCard from "@/components/home/DropToggleCard";
 import DroppedInSearchSection from "@/components/home/DroppedInSearchSection";
 import ConnectionsPanel from "@/components/home/ConnectionsPanel";
-import { getDroppedInStatus } from "@/utils/supabase/lib";
+import { getDroppedInStatus, getProfileData } from "@/utils/supabase/lib";
 
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
   const droppedIn = await getDroppedInStatus();
+  const profileData = await getProfileData();
+  const userName = profileData?.name ? String(profileData.name) : "there";
 
   return (
     <main className="min-h-screen bg-white px-4 py-12 lg:px-8">
@@ -19,7 +21,7 @@ export default async function HomePage() {
           </p>
         </div>
 
-        <DropToggleCard droppedIn={droppedIn} />
+        <DropToggleCard droppedIn={droppedIn} userName={userName} />
 
         {droppedIn ? <DroppedInSearchSection /> : <ConnectionsPanel />}
       </div>

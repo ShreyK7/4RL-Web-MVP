@@ -4,9 +4,10 @@ import { revalidatePath } from "next/cache";
 
 interface DropToggleCardProps {
   droppedIn: boolean;
+  userName: string;
 }
 
-export default function DropToggleCard({ droppedIn }: DropToggleCardProps) {
+export default function DropToggleCard({ droppedIn, userName }: DropToggleCardProps) {
   async function handleToggle(formData: FormData) {
     "use server";
     const targetState = formData.get("targetState") === "true";
@@ -20,7 +21,7 @@ export default function DropToggleCard({ droppedIn }: DropToggleCardProps) {
         <div>
           <p className="text-sm uppercase tracking-[0.3em] text-gray-400">Status</p>
           <h1 className="mt-3 text-4xl font-semibold text-gray-900">
-            {droppedIn ? "You're dropped in" : "You're currently dropped out"}
+            {droppedIn ? `Hi ${userName}, you're dropped in` : `Hi ${userName}, you're currently dropped out`}
           </h1>
           <p className="mt-2 text-gray-500">
             {droppedIn
