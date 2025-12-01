@@ -2,6 +2,39 @@
 import { createClient } from "./serverClient";
 import { profileData } from "../types/userDataTypes";
 
+export async function getProfileData() {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  if (userError) {
+    throw userError;
+  }
+
+  if (!user) {
+    throw new Error("No authenticated user found in session.");
+  }
+
+  const { data, error } = await supabase
+    .from("user_info")
+    .select("profile_data")
+    .eq("user_id", user.id)
+    .single();
+
+  if (error) {
+    // If the row doesn't exist, return null
+    if (error.code === "PGRST116") {
+      return null;
+    }
+    throw error;
+  }
+
+  return data?.profile_data as profileData | null;
+}
+
 export async function uploadProfileData(data: profileData) {
   const supabase = await createClient();
 
@@ -102,37 +135,4 @@ export async function setDroppedInStatus(droppedIn: boolean) {
   }
 
   return droppedIn;
-}
-
-export async function getProfileData() {
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser();
-
-  if (userError) {
-    throw userError;
-  }
-
-  if (!user) {
-    throw new Error("No authenticated user found in session.");
-  }
-
-  const { data, error } = await supabase
-    .from("user_info")
-    .select("profile_data")
-    .eq("user_id", user.id)
-    .single();
-
-  if (error) {
-    // If the row doesn't exist, return null
-    if (error.code === "PGRST116") {
-      return null;
-    }
-    throw error;
-  }
-
-  return data?.profile_data as profileData | null;
 }

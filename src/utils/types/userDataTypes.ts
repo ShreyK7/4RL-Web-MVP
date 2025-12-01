@@ -1,7 +1,8 @@
 export type Pronouns = 'he/him/his' | 'she/her/hers' | 'they/them/theirs' | 'other' | '';
 
 export interface profileData {
-    name: String,
+    first_name: String,
+    last_name: String,
     age: Number,
     pronouns: Pronouns,
     about: String,

@@ -3,7 +3,8 @@ import { Pronouns } from "@/utils/types/userDataTypes";
 
 interface PersonalInfoFormProps {
   onNext: (data: {
-    name: string;
+    firstName: string;
+    lastName: string;
     age: string;
     pronouns: Pronouns;
     hometown: string;
@@ -17,7 +18,8 @@ export default function PersonalInfoForm({ onNext }: PersonalInfoFormProps) {
     const formData = new FormData(e.currentTarget);
     
     const data = {
-      name: formData.get("name") as string,
+      firstName: formData.get("firstName") as string,
+      lastName: formData.get("lastName") as string,
       age: formData.get("age") as string,
       pronouns: formData.get("pronouns") as Pronouns,
       hometown: formData.get("hometown") as string,
@@ -25,7 +27,7 @@ export default function PersonalInfoForm({ onNext }: PersonalInfoFormProps) {
     };
 
     // Validate all fields are filled
-    if (!data.name || !data.age || !data.pronouns || !data.hometown || !data.baseCity) {
+    if (!data.firstName || !data.lastName || !data.age || !data.pronouns || !data.hometown || !data.baseCity) {
       return;
     }
 
@@ -40,8 +42,15 @@ export default function PersonalInfoForm({ onNext }: PersonalInfoFormProps) {
       <form className="w-full flex flex-col gap-4" onSubmit={handleSubmit} id="personalInfoForm">
         <input
           type="text"
-          name="name"
-          placeholder="Name"
+          name="firstName"
+          placeholder="First Name"
+          required
+          className={themeClasses.input.base}
+        />
+        <input
+          type="text"
+          name="lastName"
+          placeholder="Last Name"
           required
           className={themeClasses.input.base}
         />

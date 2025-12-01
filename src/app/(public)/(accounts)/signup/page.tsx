@@ -27,12 +27,13 @@ export default function SignUpPage() {
     
     // Form state
     const [personalInfo, setPersonalInfo] = useState<{
-        name: string;
+        firstName: string;
+        lastName: string;
         age: string;
         pronouns: Pronouns;
         hometown: string;
         baseCity: string;
-    }>({name: "", age: "", pronouns: "", hometown: "", baseCity: ""});
+    }>({firstName: "", lastName: "", age: "", pronouns: "", hometown: "", baseCity: ""});
     const [aboutMe, setAboutMe] = useState<string>("");
     const [interests, setInterests] = useState<string[]>([]);
 
@@ -61,7 +62,8 @@ export default function SignUpPage() {
     }
 
     function handlePersonalInfoNext(data: {
-        name: string;
+        firstName: string;
+        lastName: string;
         age: string;
         pronouns: Pronouns;
         hometown: string;
@@ -88,13 +90,15 @@ export default function SignUpPage() {
     }
 
     async function uploadUserProfileData() {
-        const name = personalInfo.name;
+        const firstName = personalInfo.firstName;
+        const lastName = personalInfo.lastName;
         const age = parseInt(personalInfo.age);
         const pronouns = personalInfo.pronouns;
         const hometown = personalInfo.hometown;
         const baseCity = personalInfo.baseCity;
         await uploadProfileData({
-            name: name, 
+            first_name: firstName, 
+            last_name: lastName,
             age: age, 
             pronouns: pronouns, 
             hometown: hometown, 
