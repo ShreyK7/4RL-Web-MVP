@@ -1,6 +1,7 @@
 "use server";
 import { createClient } from "./serverClient";
 import createAuthClient from "./authAdminClient";
+import { setDroppedInStatus } from "./lib";
 import { redirect } from "next/navigation";
 
 export async function handleUserSignIn(phoneNumber: string) {
@@ -30,6 +31,14 @@ export async function handleOTP(OTPCode: string, phoneNumber: string) {
 }
 
 export async function logout() {
+    // Set dropped_in status to false before logging out
+    try {
+        await setDroppedInStatus(false);
+    } catch (error) {
+        // If setting dropped_in status fails, continue with logout anyway
+        console.error("Error setting dropped_in status:", error);
+    }
+
     const supabase = await createClient();
     const { error } = await supabase.auth.signOut();
 
