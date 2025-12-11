@@ -65,6 +65,30 @@ export async function deleteCurrentUser() {
         throw new Error("No authenticated user found in session.");
     }
 
+    // Delete user's profile photo (if any) before removing the user
+    try {
+        const bucket = "user_profile_photos";
+        const { data: files, error: listError } = await supabase.storage
+            .from(bucket)
+            .list(user.id);
+
+        if (listError) {
+            console.error("Error listing profile photos:", listError);
+        } else if (files && files.length > 0) {
+            const pathsToRemove = files.map((file) => `${user.id}/${file.name}`);
+            const { error: removeError } = await supabase.storage
+                .from(bucket)
+                .remove(pathsToRemove);
+
+            if (removeError) {
+                console.error("Error removing profile photos:", removeError);
+            }
+        }
+    } catch (error) {
+        console.error("Unexpected error removing profile photos:", error);
+    }
+
+    // Delete the user via admin client
     const adminClient = createAuthClient();
     const { error } = await adminClient.auth.admin.deleteUser(user.id);
 

@@ -8,13 +8,13 @@ import ProfilePhotoForm from "@/components/onboarding/profilePhotoForm";
 
 import { handleUserSignIn, handleOTP } from "@/utils/supabase/auth";
 import { uploadProfileData } from "@/utils/supabase/lib";
+import { uploadProfilePhoto } from "@/utils/supabase/uploadProfilePhoto";
 
 import { themeClasses } from "@/utils/theme";
 import { Pronouns } from "@/utils/types/userDataTypes";
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { profile } from "console";
 
 type FormStep = "phone" | "otp" | "personalInfo" | "aboutMe" | "interests" | "profilePhoto" | "complete";
 
@@ -85,7 +85,9 @@ export default function SignUpPage() {
 
     async function handleProfilePhotoComplete(profilePhoto: File | null) {
         await uploadUserProfileData();
-        //await uploadUserProfilePicture(profilePhoto)
+        if (profilePhoto) {
+            await uploadProfilePhoto(profilePhoto);
+        }
         setStep("complete");
     }
 
@@ -108,9 +110,6 @@ export default function SignUpPage() {
         });
     }
 
-    async function uploadUserProfilePicture(profilePhoto: File | null) {
-
-    }
 
     // Redirect after completion
     useEffect(() => {

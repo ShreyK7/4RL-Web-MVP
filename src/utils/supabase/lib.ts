@@ -105,8 +105,3 @@ export async function setDroppedInStatus(droppedIn: boolean) {
 
   return droppedIn;
 }
-
-export async function uploadProfilePhoto(photo: File) {
-
-  
-}
