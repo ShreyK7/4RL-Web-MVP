@@ -105,3 +105,28 @@ export async function setDroppedInStatus(droppedIn: boolean) {
 
   return droppedIn;
 }
+
+export async function getProfilePhotoUrl() {
+  const supabase = await createClient();
+  const userID = await getCurrentUserID();
+
+  const { data: files, error: listError } = await supabase.storage
+    .from("user_profile_photos")
+    .list(userID, { limit: 1 });
+
+  if (listError) {
+    console.error("Error listing profile photos:", listError);
+    return null;
+  }
+
+  const file = files?.[0];
+  if (!file) {
+    return null;
+  }
+
+  const { data } = supabase.storage
+    .from("user_profile_photos")
+    .getPublicUrl(`${userID}/${file.name}`);
+
+  return data?.publicUrl ?? null;
+}
