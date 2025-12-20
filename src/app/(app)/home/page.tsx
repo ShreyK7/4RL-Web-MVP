@@ -33,7 +33,17 @@ export default async function HomePage() {
 
         <DropToggleCard droppedIn={droppedIn} userName={firstName} />
 
-        {droppedIn ? <DroppedInSearchSection /> : <ConnectionsPanel />}
+        {droppedIn ? (
+          <DroppedInSearchSection
+            currentUserInterests={
+              profileData?.interests
+                ? profileData.interests.map((interest) => String(interest))
+                : []
+            }
+          />
+        ) : (
+          <ConnectionsPanel />
+        )}
       </div>
     </main>
   );

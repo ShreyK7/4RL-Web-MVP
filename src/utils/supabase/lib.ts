@@ -158,9 +158,9 @@ export async function getOnboardingStatus() {
   return data?.onboarding_complete ?? false;
 }
 
-export async function getProfilePhotoUrl() {
+export async function getProfilePhotoUrl(userId?: string) {
   const supabase = await createClient();
-  const userID = await getCurrentUserID();
+  const userID = userId || await getCurrentUserID();
 
   const { data: files, error: listError } = await supabase.storage
     .from("user_profile_photos")
@@ -181,4 +181,70 @@ export async function getProfilePhotoUrl() {
     .getPublicUrl(`${userID}/${file.name}`);
 
   return data?.publicUrl ?? null;
+}
+
+export interface UserSearchResult {
+  user_id: string;
+  profile_data: profileData;
+  user_latitude: number | null;
+  user_longitude: number | null;
+  distance?: number;
+  photoUrl?: string | null;
+}
+
+export async function getDroppedInUsers() {
+  const supabase = await createClient();
+  const currentUserID = await getCurrentUserID();
+
+  const { data, error } = await supabase
+    .from("user_info")
+    .select("user_id, profile_data, user_latitude, user_longitude")
+    .eq("dropped_in", true)
+    .eq("onboarding_complete", true)
+    .neq("user_id", currentUserID);
+
+  if (error) {
+    throw error;
+  }
+
+  return (data || []) as UserSearchResult[];
+}
+
+export async function getCurrentUserLocation() {
+  const supabase = await createClient();
+  const userID = await getCurrentUserID();
+
+  const { data, error } = await supabase
+    .from("user_info")
+    .select("user_latitude, user_longitude")
+    .eq("user_id", userID)
+    .single();
+
+  if (error) {
+    return { latitude: null, longitude: null };
+  }
+
+  return {
+    latitude: data?.user_latitude ?? null,
+    longitude: data?.user_longitude ?? null,
+  };
+}
+
+export async function calculateDistance(
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number
+): Promise<number> {
+  const R = 3959; // Earth's radius in miles
+  const dLat = (lat2 - lat1) * (Math.PI / 180);
+  const dLon = (lon2 - lon1) * (Math.PI / 180);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * (Math.PI / 180)) *
+      Math.cos(lat2 * (Math.PI / 180)) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
 }
