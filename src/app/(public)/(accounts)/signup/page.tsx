@@ -9,6 +9,7 @@ import ProfilePhotoForm from "@/components/onboarding/profilePhotoForm";
 import { handleUserSignIn, handleOTP } from "@/utils/supabase/auth";
 import { uploadProfileData } from "@/utils/supabase/lib";
 import { uploadProfilePhoto } from "@/utils/supabase/uploadProfilePhoto";
+import { createClient } from "@/utils/supabase/browserClient";
 
 import { themeClasses } from "@/utils/theme";
 import { Pronouns } from "@/utils/types/userDataTypes";
@@ -110,6 +111,18 @@ export default function SignUpPage() {
         });
     }
 
+
+    // Check if user is already authenticated and start at personalInfo step
+    useEffect(() => {
+        async function checkAuth() {
+            const supabase = createClient();
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) {
+                setStep("personalInfo");
+            }
+        }
+        checkAuth();
+    }, []);
 
     // Redirect after completion
     useEffect(() => {

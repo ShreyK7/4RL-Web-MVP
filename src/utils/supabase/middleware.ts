@@ -46,16 +46,41 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  if (
-    user &&
-    (
-      request.nextUrl.pathname === '/login' ||
-      request.nextUrl.pathname === '/signup'
-    )
-  ) {
-    const url = request.nextUrl.clone();
-    url.pathname = '/home'
-    return NextResponse.redirect(url)
+  if (user) {
+    // Check onboarding status for authenticated users
+    try {
+      const { data: userInfo, error } = await supabase
+        .from("user_info")
+        .select("onboarding_complete")
+        .eq("user_id", user.sub)
+        .single();
+
+      // If row doesn't exist, treat as not complete
+      const onboardingComplete = error?.code === "PGRST116" 
+        ? false 
+        : (userInfo?.onboarding_complete ?? false);
+
+      // If user is trying to access login/signup but onboarding is complete, redirect to home
+      if (
+        (request.nextUrl.pathname === '/login' || request.nextUrl.pathname === '/signup') &&
+        onboardingComplete
+      ) {
+        const url = request.nextUrl.clone();
+        url.pathname = '/home';
+        return NextResponse.redirect(url);
+      }
+
+      // If user is trying to access home but onboarding is not complete, redirect to signup
+      if (request.nextUrl.pathname === '/home' && !onboardingComplete) {
+        const url = request.nextUrl.clone();
+        url.pathname = '/signup';
+        return NextResponse.redirect(url);
+      }
+    } catch (error) {
+      // If there's an error checking onboarding status, allow the request to proceed
+      // This prevents blocking users if there's a database issue
+      console.error("Error checking onboarding status:", error);
+    }
   }
 
   // IMPORTANT: You *must* return the supabaseResponse object as it is. If you're

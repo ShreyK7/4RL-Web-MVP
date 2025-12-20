@@ -64,6 +64,27 @@ export async function uploadProfileData(data: profileData) {
   return { success: true };
 }
 
+export async function updateProfileData(data: profileData) {
+  const supabase = await createClient();
+  const userID = await getCurrentUserID();
+
+  const { error } = await supabase
+    .from("user_info")
+    .upsert(
+      {
+        user_id: userID,
+        profile_data: data,
+      },
+      { onConflict: "user_id" }
+    );
+
+  if (error) {
+    throw error;
+  }
+
+  return { success: true };
+}
+
 export async function getDroppedInStatus() {
   const supabase = await createClient();
   const userID = await getCurrentUserID();
@@ -104,6 +125,27 @@ export async function setDroppedInStatus(droppedIn: boolean) {
   }
 
   return droppedIn;
+}
+
+export async function getOnboardingStatus() {
+  const supabase = await createClient();
+  const userID = await getCurrentUserID();
+
+  const { data, error } = await supabase
+    .from("user_info")
+    .select("onboarding_complete")
+    .eq("user_id", userID)
+    .single();
+
+  if (error) {
+    // If the row doesn't exist yet, treat as not complete
+    if (error.code === "PGRST116") {
+      return false;
+    }
+    throw error;
+  }
+
+  return data?.onboarding_complete ?? false;
 }
 
 export async function getProfilePhotoUrl() {

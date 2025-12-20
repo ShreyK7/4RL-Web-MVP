@@ -30,6 +30,7 @@ export default function LoginPage() {
         if (result.error) {
             setErrorMessage(result.error.message || "An error occured when validating your code");
         } else {
+            // Redirect to home - middleware will check onboarding status and redirect to signup if needed
             redirect("/home");
         }
     }

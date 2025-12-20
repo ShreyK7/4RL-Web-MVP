@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { profileData } from "@/utils/types/userDataTypes";
-import { updateProfileDataClient } from "@/utils/supabase/updateProfileData";
+import { updateProfileData } from "@/utils/supabase/lib";
 import { uploadProfilePhoto } from "@/utils/supabase/uploadProfilePhoto";
 
 interface EditProfileModalProps {
@@ -53,7 +53,7 @@ export default function EditProfileModal({
         interests,
       };
 
-      await updateProfileDataClient(updatedProfile);
+      await updateProfileData(updatedProfile);
 
       let newPhotoUrl: string | undefined;
       if (photoFile) {
