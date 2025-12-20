@@ -1,6 +1,9 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 import DropToggleButton from "./DropToggleButton";
 import { setDroppedInStatus } from "@/utils/supabase/lib";
-import { revalidatePath } from "next/cache";
 
 interface DropToggleCardProps {
   droppedIn: boolean;
@@ -8,11 +11,53 @@ interface DropToggleCardProps {
 }
 
 export default function DropToggleCard({ droppedIn, userName }: DropToggleCardProps) {
-  async function handleToggle(formData: FormData) {
-    "use server";
-    const targetState = formData.get("targetState") === "true";
-    await setDroppedInStatus(targetState);
-    revalidatePath("/home");
+  const router = useRouter();
+  const [isToggling, setIsToggling] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  async function handleToggle() {
+    setIsToggling(true);
+    setErrorMessage(null);
+    const targetState = !droppedIn;
+
+    try {
+      if (targetState) {
+        // When dropping in, get user's location
+        const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+          if (!navigator.geolocation) {
+            reject(new Error("Geolocation is not supported by your browser"));
+            return;
+          }
+
+          navigator.geolocation.getCurrentPosition(
+            resolve,
+            reject,
+            {
+              enableHighAccuracy: true,
+              timeout: 10000,
+              maximumAge: 0,
+            }
+          );
+        });
+
+        const latitude = position.coords.latitude;
+        const longitude = position.coords.longitude;
+
+        await setDroppedInStatus(targetState, latitude, longitude);
+      } else {
+        // When dropping out, no location needed
+        await setDroppedInStatus(targetState);
+      }
+
+      router.refresh();
+    } catch (error: any) {
+      console.error("Error toggling drop in status:", error);
+      setErrorMessage(
+        error.message || "Failed to update your status. Please try again."
+      );
+    } finally {
+      setIsToggling(false);
+    }
   }
 
   return (
@@ -25,19 +70,28 @@ export default function DropToggleCard({ droppedIn, userName }: DropToggleCardPr
           </h1>
           <p className="mt-2 text-gray-500">
             {droppedIn
-              ? "You’re visible to other explorers right now."
+              ? "You're visible to other explorers right now."
               : "Tap back in when you're ready to meet up."}
           </p>
         </div>
-        <form action={handleToggle} className="flex flex-col gap-3 items-center">
-          <input type="hidden" name="targetState" value={(!droppedIn).toString()} />
-          <DropToggleButton droppedIn={droppedIn} />
+        <div className="flex flex-col gap-3 items-center">
+          <DropToggleButton 
+            droppedIn={droppedIn} 
+            disabled={isToggling} 
+            isLoading={isToggling}
+            onClick={handleToggle}
+          />
+          {errorMessage && (
+            <p className="text-xs text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2 max-w-md">
+              {errorMessage}
+            </p>
+          )}
           <p className="text-xs text-gray-400">
             {droppedIn
               ? "Dropping out hides you instantly."
-              : "Dropping in lets nearby people know you’re available."}
+              : "Dropping in lets nearby people know you're available."}
           </p>
-        </form>
+        </div>
       </div>
     </div>
   );
