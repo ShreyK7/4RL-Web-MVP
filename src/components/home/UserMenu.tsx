@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import DeleteAccountModal from "./DeleteAccountModal";
 import EditProfileModal from "./EditProfileModal";
+import IncomingConnectionsModal from "./IncomingConnectionsModal";
 import { logout } from "@/utils/supabase/auth";
 import { profileData } from "@/utils/types/userDataTypes";
 
@@ -16,6 +17,7 @@ export default function UserMenu({ userName, photoUrl, profileData }: UserMenuPr
   const [isOpen, setIsOpen] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showConnectionsModal, setShowConnectionsModal] = useState(false);
   const [displayName, setDisplayName] = useState(userName);
   const [displayPhoto, setDisplayPhoto] = useState<string | null | undefined>(photoUrl);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -73,6 +75,15 @@ export default function UserMenu({ userName, photoUrl, profileData }: UserMenuPr
                 Settings
               </button>
               <button
+                onClick={() => {
+                  setIsOpen(false);
+                  setShowConnectionsModal(true);
+                }}
+                className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                Connection Requests
+              </button>
+              <button
                 onClick={async () => {
                   setIsOpen(false);
                   await logout();
@@ -117,6 +128,10 @@ export default function UserMenu({ userName, photoUrl, profileData }: UserMenuPr
             setShowEditModal(false);
           }}
         />
+      )}
+
+      {showConnectionsModal && (
+        <IncomingConnectionsModal onClose={() => setShowConnectionsModal(false)} />
       )}
     </>
   );

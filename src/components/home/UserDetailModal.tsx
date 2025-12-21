@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { profileData } from "@/utils/types/userDataTypes";
-import { getProfilePhotoUrl } from "@/utils/supabase/lib";
+import { getProfilePhotoUrl, sendConnectionRequest } from "@/utils/supabase/lib";
 
 interface UserDetailModalProps {
   user: {
@@ -16,6 +16,9 @@ interface UserDetailModalProps {
 
 export default function UserDetailModal({ user, onClose }: UserDetailModalProps) {
   const [photoUrl, setPhotoUrl] = useState<string | null>(user.photoUrl || null);
+  const [isRequesting, setIsRequesting] = useState(false);
+  const [requestSent, setRequestSent] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   
   useEffect(() => {
     // If photoUrl wasn't passed, fetch it
@@ -23,6 +26,20 @@ export default function UserDetailModal({ user, onClose }: UserDetailModalProps)
       getProfilePhotoUrl(user.user_id).then(setPhotoUrl);
     }
   }, [user.user_id, photoUrl]);
+
+  async function handleRequestConnect() {
+    setIsRequesting(true);
+    setError(null);
+    try {
+      await sendConnectionRequest(user.user_id);
+      setRequestSent(true);
+    } catch (err: any) {
+      console.error("Error sending connection request:", err);
+      setError(err?.message || "Failed to send connection request");
+    } finally {
+      setIsRequesting(false);
+    }
+  }
 
   const firstName = user.profile_data?.first_name ? String(user.profile_data.first_name) : "";
   const lastName = user.profile_data?.last_name ? String(user.profile_data.last_name) : "";
@@ -141,16 +158,25 @@ export default function UserDetailModal({ user, onClose }: UserDetailModalProps)
             )}
 
             {/* Request to Connect Button */}
-            <div className="pt-4 border-t border-gray-200">
-              <button
-                onClick={() => {
-                  // Non-functional for now
-                  console.log("Request to connect with", user.user_id);
-                }}
-                className="w-full py-3 px-6 text-lg font-semibold rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg hover:shadow-xl transition-all duration-200"
-              >
-                Request to Connect
-              </button>
+            <div className="pt-4 border-t border-gray-200 space-y-3">
+              {error && (
+                <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
+                  {error}
+                </p>
+              )}
+              {requestSent ? (
+                <div className="w-full py-3 px-6 text-lg font-semibold rounded-2xl bg-green-100 text-green-700 text-center">
+                  Connection Request Sent!
+                </div>
+              ) : (
+                <button
+                  onClick={handleRequestConnect}
+                  disabled={isRequesting}
+                  className="w-full py-3 px-6 text-lg font-semibold rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isRequesting ? "Sending..." : "Request to Connect"}
+                </button>
+              )}
             </div>
           </div>
         </div>

@@ -1,5 +1,6 @@
 "use server"
 import { createClient } from "./serverClient";
+import createAuthClient from "./authAdminClient";
 import { profileData } from "../types/userDataTypes";
 
 async function getCurrentUserID() {
@@ -247,4 +248,294 @@ export async function calculateDistance(
       Math.sin(dLon / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c;
+}
+
+// Connection Request Functions
+export async function sendConnectionRequest(targetUserId: string) {
+  const supabase = await createClient();
+  const currentUserID = await getCurrentUserID();
+
+  // Get current user's connections_pending
+  const { data: currentUserData, error: currentUserError } = await supabase
+    .from("user_info")
+    .select("connections_pending")
+    .eq("user_id", currentUserID)
+    .single();
+
+  if (currentUserError) {
+    throw currentUserError;
+  }
+
+  // Get target user's connections_incoming (handle case where row might not exist)
+  let targetIncoming: string[] = [];
+  const { data: targetUserData, error: targetUserError } = await supabase
+    .from("user_info")
+    .select("connections_incoming")
+    .eq("user_id", targetUserId)
+    .single();
+
+  if (targetUserError && targetUserError.code !== "PGRST116") {
+    // If error is not "row not found", throw it
+    throw targetUserError;
+  } else if (targetUserData) {
+    // If row exists, get the current array
+    targetIncoming = (targetUserData.connections_incoming as string[]) || [];
+  }
+  // If row doesn't exist (PGRST116), targetIncoming stays as empty array
+
+  // Prepare updates for both users
+  const currentPending = (currentUserData?.connections_pending as string[]) || [];
+  const updatedCurrentPending = currentPending.includes(targetUserId)
+    ? currentPending
+    : [...currentPending, targetUserId];
+
+  const updatedTargetIncoming = targetIncoming.includes(currentUserID)
+    ? targetIncoming
+    : [...targetIncoming, currentUserID];
+
+  // Use admin client to update target user (bypasses RLS)
+  const adminClient = createAuthClient();
+
+  // Update current user's connections_pending (can use regular client for own row)
+  const currentUpsert = await supabase
+    .from("user_info")
+    .upsert(
+      {
+        user_id: currentUserID,
+        connections_pending: updatedCurrentPending,
+      },
+      { onConflict: "user_id" }
+    );
+
+  if (currentUpsert.error) {
+    throw currentUpsert.error;
+  }
+
+  // Update target user's connections_incoming using admin client (bypasses RLS)
+  const targetUpsert = await adminClient
+    .from("user_info")
+    .upsert(
+      {
+        user_id: targetUserId,
+        connections_incoming: updatedTargetIncoming,
+      },
+      { onConflict: "user_id" }
+    );
+
+  if (targetUpsert.error) {
+    throw targetUpsert.error;
+  }
+
+  return { success: true };
+}
+
+export async function getIncomingConnectionRequests() {
+  const supabase = await createClient();
+  const currentUserID = await getCurrentUserID();
+
+  // Get current user's connections_incoming
+  const { data: userData, error: userError } = await supabase
+    .from("user_info")
+    .select("connections_incoming")
+    .eq("user_id", currentUserID)
+    .single();
+
+  if (userError) {
+    throw userError;
+  }
+
+  const incomingIds = (userData?.connections_incoming as string[]) || [];
+  if (incomingIds.length === 0) {
+    return [];
+  }
+
+  // Get profile data for all incoming connection requests
+  const { data: usersData, error: usersError } = await supabase
+    .from("user_info")
+    .select("user_id, profile_data")
+    .in("user_id", incomingIds);
+
+  if (usersError) {
+    throw usersError;
+  }
+
+  return (usersData || []).map((user) => ({
+    user_id: user.user_id,
+    profile_data: user.profile_data as profileData,
+  }));
+}
+
+export async function acceptConnectionRequest(requestingUserId: string) {
+  const supabase = await createClient();
+  const currentUserID = await getCurrentUserID();
+
+  // Get both users' data
+  const [currentUserData, requestingUserData] = await Promise.all([
+    supabase
+      .from("user_info")
+      .select("connections_incoming, connections_active")
+      .eq("user_id", currentUserID)
+      .single(),
+    supabase
+      .from("user_info")
+      .select("connections_pending, connections_active")
+      .eq("user_id", requestingUserId)
+      .single(),
+  ]);
+
+  if (currentUserData.error) throw currentUserData.error;
+  if (requestingUserData.error) throw requestingUserData.error;
+
+  const currentIncoming = (currentUserData.data?.connections_incoming as string[]) || [];
+  const currentActive = (currentUserData.data?.connections_active as string[]) || [];
+  const requestingPending = (requestingUserData.data?.connections_pending as string[]) || [];
+  const requestingActive = (requestingUserData.data?.connections_active as string[]) || [];
+
+  // Remove requesting user from current user's connections_incoming
+  const updatedCurrentIncoming = currentIncoming.filter((id) => id !== requestingUserId);
+  
+  // Remove current user from requesting user's connections_pending
+  const updatedRequestingPending = requestingPending.filter((id) => id !== currentUserID);
+
+  // Add each other to connections_active (if not already there)
+  const updatedCurrentActive = currentActive.includes(requestingUserId)
+    ? currentActive
+    : [...currentActive, requestingUserId];
+  const updatedRequestingActive = requestingActive.includes(currentUserID)
+    ? requestingActive
+    : [...requestingActive, currentUserID];
+
+  // Update current user (can use regular client for own row)
+  const currentUpdate = await supabase
+    .from("user_info")
+    .update({
+      connections_incoming: updatedCurrentIncoming,
+      connections_active: updatedCurrentActive,
+    })
+    .eq("user_id", currentUserID);
+
+  if (currentUpdate.error) throw currentUpdate.error;
+
+  // Update requesting user using admin client (bypasses RLS)
+  const adminClient = createAuthClient();
+  const requestingUpdate = await adminClient
+    .from("user_info")
+    .update({
+      connections_pending: updatedRequestingPending,
+      connections_active: updatedRequestingActive,
+    })
+    .eq("user_id", requestingUserId);
+
+  if (requestingUpdate.error) throw requestingUpdate.error;
+
+  return { success: true };
+}
+
+export async function rejectConnectionRequest(requestingUserId: string) {
+  const supabase = await createClient();
+  const currentUserID = await getCurrentUserID();
+
+  // Get both users' data
+  const [currentUserData, requestingUserData] = await Promise.all([
+    supabase
+      .from("user_info")
+      .select("connections_incoming")
+      .eq("user_id", currentUserID)
+      .single(),
+    supabase
+      .from("user_info")
+      .select("connections_pending")
+      .eq("user_id", requestingUserId)
+      .single(),
+  ]);
+
+  if (currentUserData.error) throw currentUserData.error;
+  if (requestingUserData.error) throw requestingUserData.error;
+
+  const currentIncoming = (currentUserData.data?.connections_incoming as string[]) || [];
+  const requestingPending = (requestingUserData.data?.connections_pending as string[]) || [];
+
+  // Remove requesting user from current user's connections_incoming
+  const updatedCurrentIncoming = currentIncoming.filter((id) => id !== requestingUserId);
+  
+  // Remove current user from requesting user's connections_pending
+  const updatedRequestingPending = requestingPending.filter((id) => id !== currentUserID);
+
+  // Update current user (can use regular client for own row)
+  const currentUpdate = await supabase
+    .from("user_info")
+    .update({ connections_incoming: updatedCurrentIncoming })
+    .eq("user_id", currentUserID);
+
+  if (currentUpdate.error) throw currentUpdate.error;
+
+  // Update requesting user using admin client (bypasses RLS)
+  const adminClient = createAuthClient();
+  const requestingUpdate = await adminClient
+    .from("user_info")
+    .update({ connections_pending: updatedRequestingPending })
+    .eq("user_id", requestingUserId);
+
+  if (requestingUpdate.error) throw requestingUpdate.error;
+
+  return { success: true };
+}
+
+export async function blockConnectionRequest(requestingUserId: string) {
+  const supabase = await createClient();
+  const currentUserID = await getCurrentUserID();
+
+  // Get both users' data
+  const [currentUserData, requestingUserData] = await Promise.all([
+    supabase
+      .from("user_info")
+      .select("connections_incoming, connections_blocked")
+      .eq("user_id", currentUserID)
+      .single(),
+    supabase
+      .from("user_info")
+      .select("connections_pending")
+      .eq("user_id", requestingUserId)
+      .single(),
+  ]);
+
+  if (currentUserData.error) throw currentUserData.error;
+  if (requestingUserData.error) throw requestingUserData.error;
+
+  const currentIncoming = (currentUserData.data?.connections_incoming as string[]) || [];
+  const currentBlocked = (currentUserData.data?.connections_blocked as string[]) || [];
+  const requestingPending = (requestingUserData.data?.connections_pending as string[]) || [];
+
+  // Remove requesting user from current user's connections_incoming
+  const updatedCurrentIncoming = currentIncoming.filter((id) => id !== requestingUserId);
+  
+  // Remove current user from requesting user's connections_pending
+  const updatedRequestingPending = requestingPending.filter((id) => id !== currentUserID);
+
+  // Add requesting user to current user's connections_blocked (if not already there)
+  const updatedCurrentBlocked = currentBlocked.includes(requestingUserId)
+    ? currentBlocked
+    : [...currentBlocked, requestingUserId];
+
+  // Update current user (can use regular client for own row)
+  const currentUpdate = await supabase
+    .from("user_info")
+    .update({
+      connections_incoming: updatedCurrentIncoming,
+      connections_blocked: updatedCurrentBlocked,
+    })
+    .eq("user_id", currentUserID);
+
+  if (currentUpdate.error) throw currentUpdate.error;
+
+  // Update requesting user using admin client (bypasses RLS)
+  const adminClient = createAuthClient();
+  const requestingUpdate = await adminClient
+    .from("user_info")
+    .update({ connections_pending: updatedRequestingPending })
+    .eq("user_id", requestingUserId);
+
+  if (requestingUpdate.error) throw requestingUpdate.error;
+
+  return { success: true };
 }
