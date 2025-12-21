@@ -365,6 +365,92 @@ export async function getIncomingConnectionRequests() {
   }));
 }
 
+export async function getActiveConnections() {
+  const supabase = await createClient();
+  const currentUserID = await getCurrentUserID();
+
+  // Get current user's connections_active
+  const { data: userData, error: userError } = await supabase
+    .from("user_info")
+    .select("connections_active")
+    .eq("user_id", currentUserID)
+    .single();
+
+  if (userError) {
+    throw userError;
+  }
+
+  const activeIds = (userData?.connections_active as string[]) || [];
+  if (activeIds.length === 0) {
+    return [];
+  }
+
+  // Get profile data for all active connections
+  const { data: usersData, error: usersError } = await supabase
+    .from("user_info")
+    .select("user_id, profile_data")
+    .in("user_id", activeIds);
+
+  if (usersError) {
+    throw usersError;
+  }
+
+  return (usersData || []).map((user) => ({
+    user_id: user.user_id,
+    profile_data: user.profile_data as profileData,
+  }));
+}
+
+export async function removeConnection(connectionUserId: string) {
+  const supabase = await createClient();
+  const currentUserID = await getCurrentUserID();
+
+  // Get both users' connections_active
+  const [currentUserData, connectionUserData] = await Promise.all([
+    supabase
+      .from("user_info")
+      .select("connections_active")
+      .eq("user_id", currentUserID)
+      .single(),
+    supabase
+      .from("user_info")
+      .select("connections_active")
+      .eq("user_id", connectionUserId)
+      .single(),
+  ]);
+
+  if (currentUserData.error) throw currentUserData.error;
+  if (connectionUserData.error) throw connectionUserData.error;
+
+  const currentActive = (currentUserData.data?.connections_active as string[]) || [];
+  const connectionActive = (connectionUserData.data?.connections_active as string[]) || [];
+
+  // Remove connection user from current user's connections_active
+  const updatedCurrentActive = currentActive.filter((id) => id !== connectionUserId);
+  
+  // Remove current user from connection user's connections_active
+  const updatedConnectionActive = connectionActive.filter((id) => id !== currentUserID);
+
+  // Update current user (can use regular client for own row)
+  const currentUpdate = await supabase
+    .from("user_info")
+    .update({ connections_active: updatedCurrentActive })
+    .eq("user_id", currentUserID);
+
+  if (currentUpdate.error) throw currentUpdate.error;
+
+  // Update connection user using admin client (bypasses RLS)
+  const adminClient = createAuthClient();
+  const connectionUpdate = await adminClient
+    .from("user_info")
+    .update({ connections_active: updatedConnectionActive })
+    .eq("user_id", connectionUserId);
+
+  if (connectionUpdate.error) throw connectionUpdate.error;
+
+  return { success: true };
+}
+
 export async function acceptConnectionRequest(requestingUserId: string) {
   const supabase = await createClient();
   const currentUserID = await getCurrentUserID();
