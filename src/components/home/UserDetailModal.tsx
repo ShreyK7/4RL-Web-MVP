@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { profileData } from "@/utils/types/userDataTypes";
-import { getProfilePhotoUrl, sendConnectionRequest } from "@/utils/supabase/lib";
+import { getProfilePhotoUrl, sendConnectionRequest, getConnectionStatus, type ConnectionStatus } from "@/utils/supabase/lib";
 
 interface UserDetailModalProps {
   user: {
@@ -19,12 +19,28 @@ export default function UserDetailModal({ user, onClose }: UserDetailModalProps)
   const [isRequesting, setIsRequesting] = useState(false);
   const [requestSent, setRequestSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>("none");
+  const [loadingStatus, setLoadingStatus] = useState(true);
   
   useEffect(() => {
     // If photoUrl wasn't passed, fetch it
     if (!photoUrl) {
       getProfilePhotoUrl(user.user_id).then(setPhotoUrl);
     }
+
+    // Check connection status
+    async function checkStatus() {
+      try {
+        const status = await getConnectionStatus(user.user_id);
+        setConnectionStatus(status);
+      } catch (err) {
+        console.error("Error checking connection status:", err);
+      } finally {
+        setLoadingStatus(false);
+      }
+    }
+
+    checkStatus();
   }, [user.user_id, photoUrl]);
 
   async function handleRequestConnect() {
@@ -32,6 +48,9 @@ export default function UserDetailModal({ user, onClose }: UserDetailModalProps)
     setError(null);
     try {
       await sendConnectionRequest(user.user_id);
+      // Refresh connection status after sending request
+      const status = await getConnectionStatus(user.user_id);
+      setConnectionStatus(status);
       setRequestSent(true);
     } catch (err: any) {
       console.error("Error sending connection request:", err);
@@ -157,14 +176,36 @@ export default function UserDetailModal({ user, onClose }: UserDetailModalProps)
               </div>
             )}
 
-            {/* Request to Connect Button */}
+            {/* Connection Status Button/Message */}
             <div className="pt-4 border-t border-gray-200 space-y-3">
               {error && (
                 <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
                   {error}
                 </p>
               )}
-              {requestSent ? (
+              {loadingStatus ? (
+                <div className="w-full py-3 px-6 text-lg font-semibold rounded-2xl bg-gray-100 text-gray-500 text-center">
+                  Loading...
+                </div>
+              ) : connectionStatus === "connected" ? (
+                <button
+                  onClick={() => {
+                    // Non-functional for now
+                    console.log("Message user:", user.user_id);
+                  }}
+                  className="w-full py-3 px-6 text-lg font-semibold rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg hover:shadow-xl transition-all duration-200"
+                >
+                  Message
+                </button>
+              ) : connectionStatus === "pending" ? (
+                <div className="w-full py-3 px-6 text-lg font-semibold rounded-2xl bg-yellow-100 text-yellow-700 text-center">
+                  Connection Request Pending
+                </div>
+              ) : connectionStatus === "blocked" ? (
+                <div className="w-full py-3 px-6 text-lg font-semibold rounded-2xl bg-red-100 text-red-700 text-center">
+                  This user has blocked you
+                </div>
+              ) : requestSent ? (
                 <div className="w-full py-3 px-6 text-lg font-semibold rounded-2xl bg-green-100 text-green-700 text-center">
                   Connection Request Sent!
                 </div>

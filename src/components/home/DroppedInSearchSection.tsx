@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { themeClasses } from "@/utils/theme";
-import { getDroppedInUsers, getCurrentUserLocation, calculateDistance, getProfilePhotoUrl, type UserSearchResult } from "@/utils/supabase/lib";
+import { getDroppedInUsers, getCurrentUserLocation, calculateDistance, getProfilePhotoUrl, getConnectionStatus, type UserSearchResult } from "@/utils/supabase/lib";
 import { profileData } from "@/utils/types/userDataTypes";
 import UserDetailModal from "./UserDetailModal";
 
@@ -29,10 +29,10 @@ export default function DroppedInSearchSection({ currentUserInterests }: Dropped
           getCurrentUserLocation(),
         ]);
 
-        // Calculate distances and fetch photos for each user
+        // Calculate distances, fetch photos, and check connection status for each user
         const usersWithDistance = await Promise.all(
           usersData.map(async (user) => {
-            const [distance, photoUrl] = await Promise.all([
+            const [distance, photoUrl, connectionStatus] = await Promise.all([
               currentLocation.latitude &&
               currentLocation.longitude &&
               user.user_latitude &&
@@ -45,21 +45,27 @@ export default function DroppedInSearchSection({ currentUserInterests }: Dropped
                   )
                 : Promise.resolve(undefined),
               getProfilePhotoUrl(user.user_id),
+              getConnectionStatus(user.user_id),
             ]);
 
-            return { ...user, distance, photoUrl };
+            return { ...user, distance, photoUrl, connectionStatus };
           })
         );
 
+        // Filter out connected, pending, and blocked users, and remove connectionStatus from objects
+        const availableUsers = usersWithDistance
+          .filter((user) => user.connectionStatus === "none")
+          .map(({ connectionStatus, ...user }) => user);
+
         // Sort by distance (closest first)
-        usersWithDistance.sort((a, b) => {
+        availableUsers.sort((a, b) => {
           if (a.distance === undefined) return 1;
           if (b.distance === undefined) return -1;
           return a.distance - b.distance;
         });
 
-        setUsers(usersWithDistance);
-        setFilteredUsers(usersWithDistance);
+        setUsers(availableUsers);
+        setFilteredUsers(availableUsers);
       } catch (error) {
         console.error("Error fetching users:", error);
       } finally {

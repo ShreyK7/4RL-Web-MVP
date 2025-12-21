@@ -401,6 +401,58 @@ export async function getActiveConnections() {
   }));
 }
 
+export type ConnectionStatus = "connected" | "pending" | "blocked" | "none";
+
+export async function getConnectionStatus(targetUserId: string): Promise<ConnectionStatus> {
+  const supabase = await createClient();
+  const currentUserID = await getCurrentUserID();
+
+  // Get current user's connection arrays
+  const { data: currentUserData, error: currentUserError } = await supabase
+    .from("user_info")
+    .select("connections_active, connections_pending, connections_incoming, connections_blocked")
+    .eq("user_id", currentUserID)
+    .single();
+
+  if (currentUserError) {
+    throw currentUserError;
+  }
+
+  const active = (currentUserData?.connections_active as string[]) || [];
+  const pending = (currentUserData?.connections_pending as string[]) || [];
+  const incoming = (currentUserData?.connections_incoming as string[]) || [];
+  const blocked = (currentUserData?.connections_blocked as string[]) || [];
+
+  // Check if user has blocked the current user (need to check target user's blocked list)
+  const { data: targetUserData } = await supabase
+    .from("user_info")
+    .select("connections_blocked")
+    .eq("user_id", targetUserId)
+    .single();
+
+  const targetBlocked = (targetUserData?.connections_blocked as string[]) || [];
+  if (targetBlocked.includes(currentUserID)) {
+    return "blocked";
+  }
+
+  // Check if already connected
+  if (active.includes(targetUserId)) {
+    return "connected";
+  }
+
+  // Check if pending (either direction)
+  if (pending.includes(targetUserId) || incoming.includes(targetUserId)) {
+    return "pending";
+  }
+
+  // Check if current user has blocked target user
+  if (blocked.includes(targetUserId)) {
+    return "blocked";
+  }
+
+  return "none";
+}
+
 export async function removeConnection(connectionUserId: string) {
   const supabase = await createClient();
   const currentUserID = await getCurrentUserID();
