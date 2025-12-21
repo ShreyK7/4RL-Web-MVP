@@ -13,6 +13,7 @@ import UserDetailModal from "./UserDetailModal";
 
 interface IncomingConnectionsModalProps {
   onClose: () => void;
+  onRequestHandled?: () => void;
 }
 
 interface ConnectionRequestUser {
@@ -21,7 +22,7 @@ interface ConnectionRequestUser {
   photoUrl?: string | null;
 }
 
-export default function IncomingConnectionsModal({ onClose }: IncomingConnectionsModalProps) {
+export default function IncomingConnectionsModal({ onClose, onRequestHandled }: IncomingConnectionsModalProps) {
   const [requests, setRequests] = useState<ConnectionRequestUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedUser, setSelectedUser] = useState<ConnectionRequestUser | null>(null);
@@ -56,6 +57,7 @@ export default function IncomingConnectionsModal({ onClose }: IncomingConnection
     try {
       await acceptConnectionRequest(userId);
       setRequests((prev) => prev.filter((req) => req.user_id !== userId));
+      onRequestHandled?.();
     } catch (error) {
       console.error("Error accepting connection request:", error);
       alert("Failed to accept connection request");
@@ -69,6 +71,7 @@ export default function IncomingConnectionsModal({ onClose }: IncomingConnection
     try {
       await rejectConnectionRequest(userId);
       setRequests((prev) => prev.filter((req) => req.user_id !== userId));
+      onRequestHandled?.();
     } catch (error) {
       console.error("Error rejecting connection request:", error);
       alert("Failed to reject connection request");
@@ -85,6 +88,7 @@ export default function IncomingConnectionsModal({ onClose }: IncomingConnection
     try {
       await blockConnectionRequest(userId);
       setRequests((prev) => prev.filter((req) => req.user_id !== userId));
+      onRequestHandled?.();
     } catch (error) {
       console.error("Error blocking connection request:", error);
       alert("Failed to block user");

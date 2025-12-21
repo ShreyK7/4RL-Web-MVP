@@ -329,6 +329,25 @@ export async function sendConnectionRequest(targetUserId: string) {
   return { success: true };
 }
 
+export async function getIncomingConnectionRequestsCount() {
+  const supabase = await createClient();
+  const currentUserID = await getCurrentUserID();
+
+  // Get current user's connections_incoming
+  const { data: userData, error: userError } = await supabase
+    .from("user_info")
+    .select("connections_incoming")
+    .eq("user_id", currentUserID)
+    .single();
+
+  if (userError) {
+    throw userError;
+  }
+
+  const incomingIds = (userData?.connections_incoming as string[]) || [];
+  return incomingIds.length;
+}
+
 export async function getIncomingConnectionRequests() {
   const supabase = await createClient();
   const currentUserID = await getCurrentUserID();

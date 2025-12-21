@@ -6,6 +6,7 @@ import EditProfileModal from "./EditProfileModal";
 import IncomingConnectionsModal from "./IncomingConnectionsModal";
 import { logout } from "@/utils/supabase/auth";
 import { profileData } from "@/utils/types/userDataTypes";
+import { getIncomingConnectionRequestsCount } from "@/utils/supabase/lib";
 
 interface UserMenuProps {
   userName: string;
@@ -20,6 +21,7 @@ export default function UserMenu({ userName, photoUrl, profileData }: UserMenuPr
   const [showConnectionsModal, setShowConnectionsModal] = useState(false);
   const [displayName, setDisplayName] = useState(userName);
   const [displayPhoto, setDisplayPhoto] = useState<string | null | undefined>(photoUrl);
+  const [requestCount, setRequestCount] = useState(0);
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -38,12 +40,29 @@ export default function UserMenu({ userName, photoUrl, profileData }: UserMenuPr
     };
   }, [isOpen]);
 
+  useEffect(() => {
+    async function fetchRequestCount() {
+      try {
+        const count = await getIncomingConnectionRequestsCount();
+        setRequestCount(count);
+      } catch (error) {
+        console.error("Error fetching connection request count:", error);
+      }
+    }
+
+    fetchRequestCount();
+    // Refresh count periodically
+    const interval = setInterval(fetchRequestCount, 30000); // Check every 30 seconds
+
+    return () => clearInterval(interval);
+  }, []);
+
   return (
     <>
       <div className="relative" ref={menuRef}>
         <button
           onClick={() => setIsOpen(!isOpen)}
-          className="flex items-center justify-center w-10 h-10 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors text-gray-700 overflow-hidden"
+          className="relative flex items-center justify-center w-10 h-10 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors text-gray-700 overflow-hidden"
           aria-label="User menu"
         >
           {displayPhoto ? (
@@ -55,6 +74,11 @@ export default function UserMenu({ userName, photoUrl, profileData }: UserMenuPr
           ) : (
             <span className="text-sm font-semibold">
               {displayName ? displayName.charAt(0).toUpperCase() : "U"}
+            </span>
+          )}
+          {requestCount > 0 && (
+            <span className="absolute -top-1 -right-1 flex items-center justify-center min-w-[20px] h-5 px-1.5 bg-red-500 text-white text-xs font-bold rounded-full border-2 border-white shadow-sm">
+              {requestCount > 99 ? "99+" : requestCount}
             </span>
           )}
         </button>
@@ -75,13 +99,25 @@ export default function UserMenu({ userName, photoUrl, profileData }: UserMenuPr
                 Settings
               </button>
               <button
-                onClick={() => {
+                onClick={async () => {
                   setIsOpen(false);
+                  // Refresh count when opening modal
+                  try {
+                    const count = await getIncomingConnectionRequestsCount();
+                    setRequestCount(count);
+                  } catch (error) {
+                    console.error("Error fetching connection request count:", error);
+                  }
                   setShowConnectionsModal(true);
                 }}
-                className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors flex items-center justify-between"
               >
-                Connection Requests
+                <span>Connection Requests</span>
+                {requestCount > 0 && (
+                  <span className="flex items-center justify-center min-w-[20px] h-5 px-1.5 bg-red-500 text-white text-xs font-bold rounded-full">
+                    {requestCount > 99 ? "99+" : requestCount}
+                  </span>
+                )}
               </button>
               <button
                 onClick={async () => {
@@ -131,7 +167,17 @@ export default function UserMenu({ userName, photoUrl, profileData }: UserMenuPr
       )}
 
       {showConnectionsModal && (
-        <IncomingConnectionsModal onClose={() => setShowConnectionsModal(false)} />
+        <IncomingConnectionsModal 
+          onClose={() => {
+            setShowConnectionsModal(false);
+            // Refresh count when modal closes
+            getIncomingConnectionRequestsCount().then(setRequestCount).catch(console.error);
+          }}
+          onRequestHandled={() => {
+            // Refresh count when a request is handled
+            getIncomingConnectionRequestsCount().then(setRequestCount).catch(console.error);
+          }}
+        />
       )}
     </>
   );
