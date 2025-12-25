@@ -19,7 +19,7 @@ function normalizePhoneNumber(phone: string | null | undefined): string {
  * Check if a phone number matches the admin phone number (handles format variations)
  * Compares the last 10 digits to handle different country code formats
  */
-function isAdminPhoneNumber(phone: string | null | undefined): boolean {
+export async function isAdminPhoneNumber(phone: string | null | undefined): Promise<boolean> {
   if (!phone) return false;
   
   const phoneDigits = normalizePhoneNumber(phone);
@@ -68,7 +68,7 @@ export async function isAdmin(): Promise<boolean> {
   }
 
   // Check if user's phone matches admin phone number (with format normalization)
-  return isAdminPhoneNumber(user.phone);
+  return await isAdminPhoneNumber(user.phone);
 }
 
 /**
@@ -78,7 +78,7 @@ export async function adminSignIn(phoneNumber: string) {
   // Normalize phone number for comparison
   const normalizedPhone = normalizePhoneNumber(phoneNumber);
   
-  if (!isAdminPhoneNumber(normalizedPhone)) {
+  if (!(await isAdminPhoneNumber(normalizedPhone))) {
     return { error: { message: "Unauthorized: This phone number is not authorized for admin access" } };
   }
   
@@ -114,7 +114,7 @@ export async function adminVerifyOTP(OTPCode: string, phoneNumber: string) {
 
   // Double-check the user is admin after OTP verification (with format normalization)
   const userPhone = session?.user?.phone;
-  if (!isAdminPhoneNumber(userPhone)) {
+  if (!(await isAdminPhoneNumber(userPhone))) {
     // Log for debugging
     console.log("Admin verification failed:", {
       userPhone,
@@ -141,7 +141,7 @@ export async function getAllUsers() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user || !isAdminPhoneNumber(user.phone)) {
+  if (!user || !(await isAdminPhoneNumber(user.phone))) {
     throw new Error("Unauthorized: Admin access required");
   }
 
@@ -284,7 +284,7 @@ export async function bulkCreateRandomUsersNearby(count: number) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user || !isAdminPhoneNumber(user.phone)) {
+  if (!user || !(await isAdminPhoneNumber(user.phone))) {
     throw new Error("Unauthorized: Admin access required");
   }
 
@@ -392,7 +392,7 @@ export async function bulkCreateRandomUsers(count: number) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user || !isAdminPhoneNumber(user.phone)) {
+  if (!user || !(await isAdminPhoneNumber(user.phone))) {
     throw new Error("Unauthorized: Admin access required");
   }
 
@@ -496,7 +496,7 @@ export async function createTestUser(
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user || !isAdminPhoneNumber(user.phone)) {
+  if (!user || !(await isAdminPhoneNumber(user.phone))) {
     throw new Error("Unauthorized: Admin access required");
   }
 
@@ -583,7 +583,7 @@ export async function createConnection(userId1: string, userId2: string) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user || !isAdminPhoneNumber(user.phone)) {
+  if (!user || !(await isAdminPhoneNumber(user.phone))) {
     throw new Error("Unauthorized: Admin access required");
   }
 
@@ -651,7 +651,7 @@ export async function deleteUser(userId: string) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user || !isAdminPhoneNumber(user.phone)) {
+  if (!user || !(await isAdminPhoneNumber(user.phone))) {
     throw new Error("Unauthorized: Admin access required");
   }
 

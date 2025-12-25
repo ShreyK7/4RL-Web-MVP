@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { getAllUsers, createTestUser, deleteUser, generateRandomPhoneNumber, generateRandomProfileData, generateRandomUSCoordinates, createConnection, bulkCreateRandomUsers, bulkCreateRandomUsersNearby } from "@/utils/supabase/admin";
+import { createTestUser, deleteUser, generateRandomPhoneNumber, generateRandomProfileData, generateRandomUSCoordinates, createConnection, bulkCreateRandomUsers, bulkCreateRandomUsersNearby } from "@/utils/supabase/admin";
+import { getAllUsersOptimized } from "@/utils/supabase/optimizedAdmin";
 import { profileData, Pronouns } from "@/utils/types/userDataTypes";
 import { themeClasses } from "@/utils/theme";
 import { createClient } from "@/utils/supabase/browserClient";
@@ -60,7 +61,7 @@ export default function AdminDashboard() {
   async function loadUsers() {
     try {
       setLoading(true);
-      const allUsers = await getAllUsers();
+      const allUsers = await getAllUsersOptimized();
       setUsers(allUsers);
       setError(null);
     } catch (err: any) {

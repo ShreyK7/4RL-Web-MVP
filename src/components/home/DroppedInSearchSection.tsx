@@ -2,10 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { themeClasses } from "@/utils/theme";
-import { getDroppedInUsers, type UserSearchResult } from "@/utils/supabase/userSearch";
-import { getCurrentUserLocation, calculateDistance } from "@/utils/supabase/location";
-import { getProfilePhotoUrl } from "@/utils/supabase/profile";
-import { getConnectionStatus } from "@/utils/supabase/connections";
+import { getDroppedInUsersOptimized, type OptimizedUserSearchResult } from "@/utils/supabase/optimizedUserSearch";
 import { profileData } from "@/utils/types/userDataTypes";
 import UserDetailModal from "./UserDetailModal";
 
@@ -14,10 +11,11 @@ interface DroppedInSearchSectionProps {
 }
 
 export default function DroppedInSearchSection({ currentUserInterests }: DroppedInSearchSectionProps) {
-  const [users, setUsers] = useState<UserSearchResult[]>([]);
-  const [filteredUsers, setFilteredUsers] = useState<UserSearchResult[]>([]);
+  const [users, setUsers] = useState<OptimizedUserSearchResult[]>([]);
+  const [filteredUsers, setFilteredUsers] = useState<OptimizedUserSearchResult[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedUser, setSelectedUser] = useState<UserSearchResult | null>(null);
+  const [selectedUser, setSelectedUser] = useState<OptimizedUserSearchResult | null>(null);
+  const [displayedCount, setDisplayedCount] = useState(20);
   
   // Filters
   const [ageMin, setAgeMin] = useState<string>("");
@@ -35,45 +33,8 @@ export default function DroppedInSearchSection({ currentUserInterests }: Dropped
   useEffect(() => {
     async function fetchUsers() {
       try {
-        const [usersData, currentLocation] = await Promise.all([
-          getDroppedInUsers(),
-          getCurrentUserLocation(),
-        ]);
-
-        // Calculate distances, fetch photos, and check connection status for each user
-        const usersWithDistance = await Promise.all(
-          usersData.map(async (user) => {
-            const [distance, photoUrl, connectionStatus] = await Promise.all([
-              currentLocation.latitude &&
-              currentLocation.longitude &&
-              user.user_latitude &&
-              user.user_longitude
-                ? calculateDistance(
-                    currentLocation.latitude,
-                    currentLocation.longitude,
-                    user.user_latitude,
-                    user.user_longitude
-                  )
-                : Promise.resolve(undefined),
-              getProfilePhotoUrl(user.user_id),
-              getConnectionStatus(user.user_id),
-            ]);
-
-            return { ...user, distance, photoUrl, connectionStatus };
-          })
-        );
-
-        // Filter out connected, pending, and blocked users, and remove connectionStatus from objects
-        const availableUsers = usersWithDistance
-          .filter((user) => user.connectionStatus === "none")
-          .map(({ connectionStatus, ...user }) => user);
-
-        // Sort by distance (closest first)
-        availableUsers.sort((a, b) => {
-          if (a.distance === undefined) return 1;
-          if (b.distance === undefined) return -1;
-          return a.distance - b.distance;
-        });
+        // Use optimized function that batches all operations
+        const availableUsers = await getDroppedInUsersOptimized();
 
         // Extract all unique interests and cities for autocomplete
         const uniqueInterests = Array.from(
@@ -98,6 +59,7 @@ export default function DroppedInSearchSection({ currentUserInterests }: Dropped
 
         setUsers(availableUsers);
         setFilteredUsers(availableUsers);
+        setDisplayedCount(20); // Reset to initial count when users are fetched
       } catch (error) {
         console.error("Error fetching users:", error);
       } finally {
@@ -152,17 +114,18 @@ export default function DroppedInSearchSection({ currentUserInterests }: Dropped
     }
 
     setFilteredUsers(filtered);
+    setDisplayedCount(20); // Reset pagination when filters change
   }, [ageMin, ageMax, interestFilter, baseCityFilter, distanceMax, users]);
 
-  const firstName = (user: UserSearchResult) => {
+  const firstName = (user: OptimizedUserSearchResult) => {
     return user.profile_data?.first_name ? String(user.profile_data.first_name) : "User";
   };
 
-  const lastName = (user: UserSearchResult) => {
+  const lastName = (user: OptimizedUserSearchResult) => {
     return user.profile_data?.last_name ? String(user.profile_data.last_name) : "";
   };
 
-  const fullName = (user: UserSearchResult) => {
+  const fullName = (user: OptimizedUserSearchResult) => {
     const first = firstName(user);
     const last = lastName(user);
     return `${first} ${last}`.trim();
@@ -348,39 +311,60 @@ export default function DroppedInSearchSection({ currentUserInterests }: Dropped
         )}
 
         {/* Users List */}
-        <div className="grid gap-4 md:grid-cols-2">
-          {filteredUsers.length === 0 ? (
-            <div className="col-span-2 text-center py-8 text-gray-500">
-              No users found matching your filters.
-            </div>
-          ) : (
-            filteredUsers.map((user) => (
-              <div
-                key={user.user_id}
-                onClick={() => setSelectedUser(user)}
-                className="rounded-2xl border border-gray-200 p-4 flex items-center gap-4 hover:border-blue-200 transition cursor-pointer"
-              >
-                {user.photoUrl ? (
-                  <img
-                    src={user.photoUrl}
-                    alt={fullName(user)}
-                    className="h-12 w-12 rounded-full object-cover"
-                  />
-                ) : (
-                  <div className="h-12 w-12 rounded-full bg-gradient-to-br from-blue-500 to-indigo-500 text-white flex items-center justify-center font-semibold text-lg">
-                    {firstName(user)[0]}
-                  </div>
-                )}
-                <div className="flex-1">
-                  <p className="font-semibold text-gray-900">{fullName(user)}</p>
-                  {user.distance !== undefined && (
-                    <p className="text-sm text-gray-500">
-                      {user.distance.toFixed(1)} miles away
-                    </p>
-                  )}
-                </div>
+        <div className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-2">
+            {filteredUsers.length === 0 ? (
+              <div className="col-span-2 text-center py-8 text-gray-500">
+                No users found matching your filters.
               </div>
-            ))
+            ) : (
+              filteredUsers.slice(0, displayedCount).map((user) => (
+                <div
+                  key={user.user_id}
+                  onClick={() => setSelectedUser(user)}
+                  className="rounded-2xl border border-gray-200 p-4 flex items-center gap-4 hover:border-blue-200 transition cursor-pointer"
+                >
+                  {user.photoUrl ? (
+                    <img
+                      src={user.photoUrl}
+                      alt={fullName(user)}
+                      className="h-12 w-12 rounded-full object-cover"
+                    />
+                  ) : (
+                    <div className="h-12 w-12 rounded-full bg-gradient-to-br from-blue-500 to-indigo-500 text-white flex items-center justify-center font-semibold text-lg">
+                      {firstName(user)[0]}
+                    </div>
+                  )}
+                  <div className="flex-1">
+                    <p className="font-semibold text-gray-900">{fullName(user)}</p>
+                    {user.distance !== undefined && (
+                      <p className="text-sm text-gray-500">
+                        {user.distance.toFixed(1)} miles away
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          {/* Load More Button */}
+          {filteredUsers.length > displayedCount && (
+            <div className="flex justify-center pt-4">
+              <button
+                onClick={() => setDisplayedCount((prev) => Math.min(prev + 20, filteredUsers.length))}
+                className={`${themeClasses.button.primarySmall} max-w-xs`}
+              >
+                Load More ({filteredUsers.length - displayedCount} remaining)
+              </button>
+            </div>
+          )}
+
+          {/* Show count */}
+          {filteredUsers.length > 0 && (
+            <p className="text-center text-sm text-gray-500">
+              Showing {Math.min(displayedCount, filteredUsers.length)} of {filteredUsers.length} users
+            </p>
           )}
         </div>
       </section>
