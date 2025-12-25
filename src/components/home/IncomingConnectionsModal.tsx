@@ -7,8 +7,8 @@ import {
   acceptConnectionRequest,
   rejectConnectionRequest,
   blockConnectionRequest,
-  getProfilePhotoUrl,
-} from "@/utils/supabase/lib";
+} from "@/utils/supabase/connections";
+import { getProfilePhotoUrl } from "@/utils/supabase/profile";
 import UserDetailModal from "./UserDetailModal";
 
 interface IncomingConnectionsModalProps {

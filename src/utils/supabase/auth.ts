@@ -1,7 +1,7 @@
 "use server";
 import { createClient } from "./serverClient";
 import createAuthClient from "./authAdminClient";
-import { setDroppedInStatus } from "./lib";
+import { setDroppedInStatus } from "./dropIn";
 import { redirect } from "next/navigation";
 
 export async function handleUserSignIn(phoneNumber: string) {

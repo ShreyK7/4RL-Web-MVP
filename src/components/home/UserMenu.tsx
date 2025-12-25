@@ -6,7 +6,7 @@ import EditProfileModal from "./EditProfileModal";
 import IncomingConnectionsModal from "./IncomingConnectionsModal";
 import { logout } from "@/utils/supabase/auth";
 import { profileData } from "@/utils/types/userDataTypes";
-import { getIncomingConnectionRequestsCount } from "@/utils/supabase/lib";
+import { getIncomingConnectionRequestsCount } from "@/utils/supabase/connections";
 
 interface UserMenuProps {
   userName: string;

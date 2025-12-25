@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { profileData } from "@/utils/types/userDataTypes";
-import { getProfilePhotoUrl, sendConnectionRequest, getConnectionStatus, type ConnectionStatus } from "@/utils/supabase/lib";
+import { getProfilePhotoUrl } from "@/utils/supabase/profile";
+import { sendConnectionRequest, getConnectionStatus, type ConnectionStatus } from "@/utils/supabase/connections";
 
 interface UserDetailModalProps {
   user: {

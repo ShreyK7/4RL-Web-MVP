@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { themeClasses } from "@/utils/theme";
-import { getActiveConnections, removeConnection, getProfilePhotoUrl } from "@/utils/supabase/lib";
+import { getActiveConnections, removeConnection } from "@/utils/supabase/connections";
+import { getProfilePhotoUrl } from "@/utils/supabase/profile";
 import { profileData } from "@/utils/types/userDataTypes";
 import UserDetailModal from "./UserDetailModal";
 

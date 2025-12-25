@@ -7,7 +7,7 @@ import InterestsForm from "@/components/onboarding/interestsForm";
 import ProfilePhotoForm from "@/components/onboarding/profilePhotoForm";
 
 import { handleUserSignIn, handleOTP } from "@/utils/supabase/auth";
-import { uploadProfileData } from "@/utils/supabase/lib";
+import { uploadProfileData } from "@/utils/supabase/profile";
 import { uploadProfilePhoto } from "@/utils/supabase/uploadProfilePhoto";
 import { createClient } from "@/utils/supabase/browserClient";
 

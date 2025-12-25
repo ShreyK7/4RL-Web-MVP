@@ -2,7 +2,8 @@ import DropToggleCard from "@/components/home/DropToggleCard";
 import DroppedInSearchSection from "@/components/home/DroppedInSearchSection";
 import ConnectionsPanel from "@/components/home/ConnectionsPanel";
 import UserMenu from "@/components/home/UserMenu";
-import { getDroppedInStatus, getProfileData, getProfilePhotoUrl } from "@/utils/supabase/lib";
+import { getDroppedInStatus } from "@/utils/supabase/dropIn";
+import { getProfileData, getProfilePhotoUrl } from "@/utils/supabase/profile";
 
 export const dynamic = "force-dynamic";
 

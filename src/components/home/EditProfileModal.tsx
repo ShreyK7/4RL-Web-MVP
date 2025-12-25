@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { profileData } from "@/utils/types/userDataTypes";
-import { updateProfileData } from "@/utils/supabase/lib";
+import { updateProfileData } from "@/utils/supabase/profile";
 import { uploadProfilePhoto } from "@/utils/supabase/uploadProfilePhoto";
 
 interface EditProfileModalProps {

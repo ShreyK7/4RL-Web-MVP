@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import DropToggleButton from "./DropToggleButton";
-import { setDroppedInStatus } from "@/utils/supabase/lib";
+import { setDroppedInStatus } from "@/utils/supabase/dropIn";
 
 interface DropToggleCardProps {
   droppedIn: boolean;

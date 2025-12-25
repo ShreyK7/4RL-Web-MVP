@@ -34,11 +34,15 @@ export async function updateSession(request: NextRequest) {
 
   const user = data?.claims
 
+  // Allow admin routes without authentication checks (they handle their own auth)
+  const isAdminRoute = request.nextUrl.pathname.startsWith('/admin');
+  
   if (
     !user &&
     request.nextUrl.pathname !== '/login' &&
     request.nextUrl.pathname !== '/signup' &&
-    request.nextUrl.pathname !== '/welcome'
+    request.nextUrl.pathname !== '/welcome' &&
+    !isAdminRoute
   ) {
     // no user, redirect to the home page
     const url = request.nextUrl.clone()
@@ -60,21 +64,24 @@ export async function updateSession(request: NextRequest) {
         ? false 
         : (userInfo?.onboarding_complete ?? false);
 
-      // If user is trying to access login/signup but onboarding is complete, redirect to home
-      if (
-        (request.nextUrl.pathname === '/login' || request.nextUrl.pathname === '/signup') &&
-        onboardingComplete
-      ) {
-        const url = request.nextUrl.clone();
-        url.pathname = '/home';
-        return NextResponse.redirect(url);
-      }
+      // Skip onboarding checks for admin routes
+      if (!isAdminRoute) {
+        // If user is trying to access login/signup but onboarding is complete, redirect to home
+        if (
+          (request.nextUrl.pathname === '/login' || request.nextUrl.pathname === '/signup') &&
+          onboardingComplete
+        ) {
+          const url = request.nextUrl.clone();
+          url.pathname = '/home';
+          return NextResponse.redirect(url);
+        }
 
-      // If user is trying to access home but onboarding is not complete, redirect to signup
-      if (request.nextUrl.pathname === '/home' && !onboardingComplete) {
-        const url = request.nextUrl.clone();
-        url.pathname = '/signup';
-        return NextResponse.redirect(url);
+        // If user is trying to access home but onboarding is not complete, redirect to signup
+        if (request.nextUrl.pathname === '/home' && !onboardingComplete) {
+          const url = request.nextUrl.clone();
+          url.pathname = '/signup';
+          return NextResponse.redirect(url);
+        }
       }
     } catch (error) {
       // If there's an error checking onboarding status, allow the request to proceed

@@ -2,7 +2,10 @@
 
 import { useState, useEffect } from "react";
 import { themeClasses } from "@/utils/theme";
-import { getDroppedInUsers, getCurrentUserLocation, calculateDistance, getProfilePhotoUrl, getConnectionStatus, type UserSearchResult } from "@/utils/supabase/lib";
+import { getDroppedInUsers, type UserSearchResult } from "@/utils/supabase/userSearch";
+import { getCurrentUserLocation, calculateDistance } from "@/utils/supabase/location";
+import { getProfilePhotoUrl } from "@/utils/supabase/profile";
+import { getConnectionStatus } from "@/utils/supabase/connections";
 import { profileData } from "@/utils/types/userDataTypes";
 import UserDetailModal from "./UserDetailModal";
 
@@ -17,9 +20,17 @@ export default function DroppedInSearchSection({ currentUserInterests }: Dropped
   const [selectedUser, setSelectedUser] = useState<UserSearchResult | null>(null);
   
   // Filters
-  const [ageFilter, setAgeFilter] = useState<string>("");
+  const [ageMin, setAgeMin] = useState<string>("");
+  const [ageMax, setAgeMax] = useState<string>("");
   const [interestFilter, setInterestFilter] = useState<string>("");
   const [baseCityFilter, setBaseCityFilter] = useState<string>("");
+  const [distanceMax, setDistanceMax] = useState<string>("");
+  
+  // Autocomplete states
+  const [allInterests, setAllInterests] = useState<string[]>([]);
+  const [allCities, setAllCities] = useState<string[]>([]);
+  const [showInterestSuggestions, setShowInterestSuggestions] = useState(false);
+  const [showCitySuggestions, setShowCitySuggestions] = useState(false);
 
   useEffect(() => {
     async function fetchUsers() {
@@ -64,6 +75,27 @@ export default function DroppedInSearchSection({ currentUserInterests }: Dropped
           return a.distance - b.distance;
         });
 
+        // Extract all unique interests and cities for autocomplete
+        const uniqueInterests = Array.from(
+          new Set(
+            availableUsers
+              .flatMap((u) => u.profile_data?.interests || [])
+              .map((interest) => String(interest).toLowerCase())
+          )
+        ).sort();
+
+        const uniqueCities = Array.from(
+          new Set(
+            availableUsers
+              .map((u) => u.profile_data?.baseCity)
+              .filter((city): city is string => city !== undefined && city !== null)
+              .map((city) => String(city))
+          )
+        ).sort();
+
+        setAllInterests(uniqueInterests);
+        setAllCities(uniqueCities);
+
         setUsers(availableUsers);
         setFilteredUsers(availableUsers);
       } catch (error) {
@@ -79,12 +111,14 @@ export default function DroppedInSearchSection({ currentUserInterests }: Dropped
   useEffect(() => {
     let filtered = [...users];
 
-    // Filter by age
-    if (ageFilter) {
-      const age = parseInt(ageFilter);
+    // Filter by age range
+    if (ageMin || ageMax) {
       filtered = filtered.filter((user) => {
         const userAge = user.profile_data?.age ? Number(user.profile_data.age) : null;
-        return userAge === age;
+        if (userAge === null) return false;
+        const min = ageMin ? parseInt(ageMin) : 0;
+        const max = ageMax ? parseInt(ageMax) : 1000;
+        return userAge >= min && userAge <= max;
       });
     }
 
@@ -92,7 +126,9 @@ export default function DroppedInSearchSection({ currentUserInterests }: Dropped
     if (interestFilter) {
       filtered = filtered.filter((user) => {
         const interests = user.profile_data?.interests || [];
-        return interests.some((interest) => String(interest).toLowerCase() === interestFilter.toLowerCase());
+        return interests.some((interest) => 
+          String(interest).toLowerCase().includes(interestFilter.toLowerCase())
+        );
       });
     }
 
@@ -104,8 +140,19 @@ export default function DroppedInSearchSection({ currentUserInterests }: Dropped
       });
     }
 
+    // Filter by distance
+    if (distanceMax) {
+      const maxDist = parseInt(distanceMax);
+      if (!isNaN(maxDist)) {
+        filtered = filtered.filter((user) => {
+          if (user.distance === undefined) return false;
+          return user.distance <= maxDist;
+        });
+      }
+    }
+
     setFilteredUsers(filtered);
-  }, [ageFilter, interestFilter, baseCityFilter, users]);
+  }, [ageMin, ageMax, interestFilter, baseCityFilter, distanceMax, users]);
 
   const firstName = (user: UserSearchResult) => {
     return user.profile_data?.first_name ? String(user.profile_data.first_name) : "User";
@@ -121,24 +168,7 @@ export default function DroppedInSearchSection({ currentUserInterests }: Dropped
     return `${first} ${last}`.trim();
   };
 
-  // Get unique ages and base cities from users
-  const availableAges = Array.from(
-    new Set(
-      users
-        .map((u) => u.profile_data?.age)
-        .filter((age): age is number => age !== undefined && age !== null)
-        .map((age) => Number(age))
-    )
-  ).sort((a, b) => a - b);
 
-  const availableCities = Array.from(
-    new Set(
-      users
-        .map((u) => u.profile_data?.baseCity)
-        .filter((city): city is string => city !== undefined && city !== null)
-        .map((city) => String(city))
-    )
-  ).sort();
 
   if (loading) {
     return (
@@ -161,82 +191,157 @@ export default function DroppedInSearchSection({ currentUserInterests }: Dropped
         </div>
 
         {/* Filters */}
-        <div className="flex flex-col gap-4 md:flex-row md:items-center">
-          <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-3">
-            {/* Age Filter */}
-            <select
-              value={ageFilter}
-              onChange={(e) => setAgeFilter(e.target.value)}
-              className={`${themeClasses.input.base} w-full`}
-            >
-              <option value="">All Ages</option>
-              {availableAges.map((age) => (
-                <option key={age} value={age.toString()}>
-                  {age}
-                </option>
-              ))}
-            </select>
+        <div className="space-y-6">
+          {/* Age Range Inputs */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">Min Age</label>
+              <input
+                type="number"
+                min="0"
+                value={ageMin}
+                onChange={(e) => setAgeMin(e.target.value)}
+                placeholder="18"
+                className={`${themeClasses.input.base} w-full`}
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">Max Age</label>
+              <input
+                type="number"
+                min="0"
+                value={ageMax}
+                onChange={(e) => setAgeMax(e.target.value)}
+                placeholder="100"
+                className={`${themeClasses.input.base} w-full`}
+              />
+            </div>
+          </div>
 
-            {/* Interest Filter */}
-            <select
-              value={interestFilter}
-              onChange={(e) => setInterestFilter(e.target.value)}
+          {/* Distance Input */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-gray-700">Maximum Distance (miles)</label>
+            <input
+              type="number"
+              min="0"
+              max="10"
+              value={distanceMax}
+              onChange={(e) => {
+                const val = e.target.value;
+                if (val === "" || (parseFloat(val) >= 0 && parseFloat(val) <= 10)) {
+                  setDistanceMax(val);
+                }
+              }}
+              placeholder="10"
               className={`${themeClasses.input.base} w-full`}
-            >
-              <option value="">All Interests</option>
-              {currentUserInterests.map((interest) => (
-                <option key={interest} value={interest}>
-                  {interest}
-                </option>
-              ))}
-            </select>
+            />
+            <p className="text-xs text-gray-500">Maximum: 10 miles</p>
+          </div>
 
-            {/* Base City Filter */}
-            <select
-              value={baseCityFilter}
-              onChange={(e) => setBaseCityFilter(e.target.value)}
-              className={`${themeClasses.input.base} w-full`}
-            >
-              <option value="">All Cities</option>
-              {availableCities.map((city) => (
-                <option key={city} value={city}>
-                  {city}
-                </option>
-              ))}
-            </select>
+          {/* Interests Autocomplete */}
+          <div className="space-y-2 relative">
+            <label className="text-sm font-medium text-gray-700">Interests</label>
+            <div className="relative">
+              <input
+                type="text"
+                value={interestFilter}
+                onChange={(e) => setInterestFilter(e.target.value)}
+                onFocus={() => setShowInterestSuggestions(true)}
+                onBlur={() => setTimeout(() => setShowInterestSuggestions(false), 200)}
+                placeholder="Search interests..."
+                className={`${themeClasses.input.base} w-full`}
+              />
+              {showInterestSuggestions && allInterests.length > 0 && (
+                <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg max-h-64 overflow-y-auto">
+                  {allInterests.map((interest, index) => (
+                    <button
+                      key={index}
+                      type="button"
+                      onClick={() => {
+                        setInterestFilter(interest);
+                        setShowInterestSuggestions(false);
+                      }}
+                      className="w-full text-left px-4 py-2 hover:bg-blue-50 transition-colors first:rounded-t-xl last:rounded-b-xl"
+                    >
+                      <span className="text-sm text-gray-900 capitalize">{interest}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Base City Autocomplete */}
+          <div className="space-y-2 relative">
+            <label className="text-sm font-medium text-gray-700">Base City</label>
+            <div className="relative">
+              <input
+                type="text"
+                value={baseCityFilter}
+                onChange={(e) => setBaseCityFilter(e.target.value)}
+                onFocus={() => setShowCitySuggestions(true)}
+                onBlur={() => setTimeout(() => setShowCitySuggestions(false), 200)}
+                placeholder="Search cities..."
+                className={`${themeClasses.input.base} w-full`}
+              />
+              {showCitySuggestions && allCities.length > 0 && (
+                <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg max-h-64 overflow-y-auto">
+                  {allCities.map((city, index) => (
+                    <button
+                      key={index}
+                      type="button"
+                      onClick={() => {
+                        setBaseCityFilter(city);
+                        setShowCitySuggestions(false);
+                      }}
+                      className="w-full text-left px-4 py-2 hover:bg-blue-50 transition-colors first:rounded-t-xl last:rounded-b-xl"
+                    >
+                      <span className="text-sm text-gray-900">{city}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Clear Filters */}
-          {(ageFilter || interestFilter || baseCityFilter) && (
+          {(ageMin || ageMax || interestFilter || baseCityFilter || distanceMax) && (
             <button
               onClick={() => {
-                setAgeFilter("");
+                setAgeMin("");
+                setAgeMax("");
                 setInterestFilter("");
                 setBaseCityFilter("");
+                setDistanceMax("");
               }}
-              className="px-5 py-3 rounded-2xl border border-gray-200 text-sm font-semibold text-gray-600 hover:border-gray-300 hover:bg-gray-50 transition"
+              className="px-5 py-3 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 hover:border-gray-300 hover:bg-gray-50 transition"
             >
-              Clear Filters
+              Clear All Filters
             </button>
           )}
         </div>
 
         {/* Active Filters Display */}
-        {(ageFilter || interestFilter || baseCityFilter) && (
+        {(ageMin || ageMax || interestFilter || baseCityFilter || distanceMax) && (
           <div className="flex flex-wrap gap-3">
-            {ageFilter && (
+            {(ageMin || ageMax) && (
               <span className="px-4 py-2 rounded-full bg-blue-50 text-blue-600 text-sm font-medium">
-                Age: {ageFilter}
+                Age: {ageMin || "any"}-{ageMax || "any"}
               </span>
             )}
             {interestFilter && (
               <span className="px-4 py-2 rounded-full bg-blue-50 text-blue-600 text-sm font-medium">
-                Interest: {interestFilter}
+                Interests: {interestFilter}
               </span>
             )}
             {baseCityFilter && (
               <span className="px-4 py-2 rounded-full bg-blue-50 text-blue-600 text-sm font-medium">
                 City: {baseCityFilter}
+              </span>
+            )}
+            {distanceMax && (
+              <span className="px-4 py-2 rounded-full bg-blue-50 text-blue-600 text-sm font-medium">
+                Within {distanceMax} miles
               </span>
             )}
           </div>

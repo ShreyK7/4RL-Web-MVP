@@ -7,7 +7,14 @@
     "build": "next build",
     "start": "next start",
     "lint": "biome check",
-    "format": "biome format --write"
+    "format": "biome format --write",
+    "test": "tsx tests/testRunner.ts",
+    "test:profile": "tsx tests/profile.test.ts",
+    "test:dropin": "tsx tests/dropIn.test.ts",
+    "test:location": "tsx tests/location.test.ts",
+    "test:connections": "tsx tests/connections.test.ts",
+    "test:usersearch": "tsx tests/userSearch.test.ts",
+    "test:stress": "tsx tests/stress.test.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.5.2",
@@ -22,7 +29,9 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "dotenv": "^16.4.5",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "tsx": "^4.7.0"
   }
 }
