@@ -21,6 +21,7 @@ interface User {
   connections_pending: string[];
   connections_incoming: string[];
   connections_blocked: string[];
+  dummy_user: boolean;
 }
 
 export default function AdminDashboard() {
@@ -35,6 +36,7 @@ export default function AdminDashboard() {
   const [bulkCount, setBulkCount] = useState<string>("10");
   const [bulkCreating, setBulkCreating] = useState(false);
   const [bulkCreateNearby, setBulkCreateNearby] = useState(false);
+  const [showDummyUsers, setShowDummyUsers] = useState(true);
 
   // Create user form state
   const [formData, setFormData] = useState({
@@ -54,15 +56,16 @@ export default function AdminDashboard() {
     longitude: "",
   });
 
-  useEffect(() => {
-    loadUsers();
-  }, []);
 
   async function loadUsers() {
     try {
       setLoading(true);
       const allUsers = await getAllUsersOptimized();
-      setUsers(allUsers);
+      // Filter dummy users based on toggle
+      const filteredUsers = showDummyUsers 
+        ? allUsers 
+        : allUsers.filter((user) => !user.dummy_user);
+      setUsers(filteredUsers);
       setError(null);
     } catch (err: any) {
       setError(err?.message || "Failed to load users");
@@ -71,6 +74,10 @@ export default function AdminDashboard() {
       setLoading(false);
     }
   }
+
+  useEffect(() => {
+    loadUsers();
+  }, [showDummyUsers]);
 
   async function handleCreateUser(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -282,6 +289,15 @@ export default function AdminDashboard() {
                 {bulkCreating ? "Creating..." : "Bulk Create"}
               </button>
             </div>
+            <label className="flex items-center gap-2 text-sm text-gray-700">
+              <input
+                type="checkbox"
+                checked={showDummyUsers}
+                onChange={(e) => setShowDummyUsers(e.target.checked)}
+                className="rounded border-gray-300"
+              />
+              <span>Show Dummy Users</span>
+            </label>
             <button
               onClick={() => setShowCreateForm(!showCreateForm)}
               className={`${themeClasses.button.primarySmall}`}
@@ -541,9 +557,18 @@ export default function AdminDashboard() {
                       <div className="text-xs text-gray-500">{user.phone || "—"}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {user.profile_data
-                        ? `${user.profile_data.first_name} ${user.profile_data.last_name}`
-                        : "—"}
+                      <div className="flex items-center gap-2">
+                        <span>
+                          {user.profile_data
+                            ? `${user.profile_data.first_name} ${user.profile_data.last_name}`
+                            : "—"}
+                        </span>
+                        {user.dummy_user && (
+                          <span className="px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700 text-xs font-medium">
+                            Test
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {user.profile_data?.age ? String(user.profile_data.age) : "—"}

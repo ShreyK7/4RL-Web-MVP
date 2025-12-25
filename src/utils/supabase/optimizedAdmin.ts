@@ -24,7 +24,7 @@ export async function getAllUsersOptimized() {
   // Get all users from user_info table in one query
   const { data: usersData, error } = await adminClient
     .from("user_info")
-    .select("user_id, profile_data, onboarding_complete, dropped_in, user_latitude, user_longitude, connections_active, connections_pending, connections_incoming, connections_blocked")
+    .select("user_id, profile_data, onboarding_complete, dropped_in, user_latitude, user_longitude, connections_active, connections_pending, connections_incoming, connections_blocked, dummy_user")
     .order("user_id", { ascending: true });
 
   if (error) {
@@ -74,6 +74,7 @@ export async function getAllUsersOptimized() {
     connections_pending: (userInfo.connections_pending as string[]) || [],
     connections_incoming: (userInfo.connections_incoming as string[]) || [],
     connections_blocked: (userInfo.connections_blocked as string[]) || [],
+    dummy_user: userInfo.dummy_user ?? false,
   }));
 }
 

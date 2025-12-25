@@ -12,6 +12,7 @@ export interface OptimizedUserSearchResult {
   distance?: number;
   photoUrl?: string | null;
   connectionStatus: "connected" | "pending" | "blocked" | "none";
+  dummy_user?: boolean;
 }
 
 /**
@@ -44,10 +45,10 @@ export async function getDroppedInUsersOptimized(): Promise<OptimizedUserSearchR
   const currentLat = currentLocationData?.user_latitude;
   const currentLon = currentLocationData?.user_longitude;
 
-  // Get all dropped-in users in one query
+  // Get all dropped-in users in one query (include dummy_user column)
   const { data: usersData, error } = await supabase
     .from("user_info")
-    .select("user_id, profile_data, user_latitude, user_longitude, connections_blocked")
+    .select("user_id, profile_data, user_latitude, user_longitude, connections_blocked, dummy_user")
     .eq("dropped_in", true)
     .eq("onboarding_complete", true)
     .neq("user_id", currentUserID);
@@ -117,6 +118,7 @@ export async function getDroppedInUsersOptimized(): Promise<OptimizedUserSearchR
         distance,
         photoUrl: photoUrls[user.user_id] || null,
         connectionStatus: user.connectionStatus,
+        dummy_user: user.dummy_user ?? false,
       };
     })
     // Filter out users more than 10 miles away

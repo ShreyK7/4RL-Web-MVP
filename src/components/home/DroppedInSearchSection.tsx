@@ -336,13 +336,20 @@ export default function DroppedInSearchSection({ currentUserInterests }: Dropped
                     </div>
                   )}
                   <div className="flex-1">
+                  <div className="flex items-center gap-2">
                     <p className="font-semibold text-gray-900">{fullName(user)}</p>
-                    {user.distance !== undefined && (
-                      <p className="text-sm text-gray-500">
-                        {user.distance.toFixed(1)} miles away
-                      </p>
+                    {user.dummy_user && (
+                      <span className="px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700 text-xs font-medium">
+                        Test User
+                      </span>
                     )}
                   </div>
+                  {user.distance !== undefined && (
+                    <p className="text-sm text-gray-500">
+                      {user.distance.toFixed(1)} miles away
+                    </p>
+                  )}
+                </div>
                 </div>
               ))
             )}
