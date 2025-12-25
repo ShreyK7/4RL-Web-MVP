@@ -3,6 +3,7 @@ import { createClient } from "./serverClient";
 import createAuthClient from "./authAdminClient";
 import { profileData } from "../types/userDataTypes";
 import { getCurrentUserID } from "./common";
+import { calculateDistance } from "./location";
 
 export interface OptimizedUserSearchResult {
   user_id: string;
@@ -94,15 +95,16 @@ export async function getDroppedInUsersOptimized(): Promise<OptimizedUserSearchR
   });
 
   // Filter out non-"none" connections and calculate distances
-  const availableUsers = usersWithStatus
-    .filter((user) => user.connectionStatus === "none")
-    .map((user) => {
+  const filteredUsers = usersWithStatus.filter((user) => user.connectionStatus === "none");
+  
+  const availableUsers = await Promise.all(
+    filteredUsers.map(async (user) => {
       const { connections_blocked, ...userWithoutBlocked } = user;
       
       // Calculate distance if both locations exist
       let distance: number | undefined;
       if (currentLat && currentLon && user.user_latitude && user.user_longitude) {
-        distance = calculateDistanceHaversine(
+        distance = await calculateDistance(
           currentLat,
           currentLon,
           user.user_latitude,
@@ -121,22 +123,24 @@ export async function getDroppedInUsersOptimized(): Promise<OptimizedUserSearchR
         dummy_user: user.dummy_user ?? false,
       };
     })
-    // Filter out users more than 10 miles away
-    .filter((user) => {
-      // If distance is undefined (no location data), exclude the user
-      if (user.distance === undefined) return false;
-      // Only include users within 10 miles
-      return user.distance <= 10;
-    });
+  );
+
+  // Filter out users more than 10 miles away
+  const withinRange = availableUsers.filter((user) => {
+    // If distance is undefined (no location data), exclude the user
+    if (user.distance === undefined) return false;
+    // Only include users within 10 miles
+    return user.distance <= 10;
+  });
 
   // Sort by distance (closest first)
-  availableUsers.sort((a, b) => {
+  withinRange.sort((a, b) => {
     if (a.distance === undefined) return 1;
     if (b.distance === undefined) return -1;
     return a.distance - b.distance;
   });
 
-  return availableUsers;
+  return withinRange;
 }
 
 /**
@@ -182,26 +186,3 @@ async function batchGetProfilePhotoUrls(userIds: string[]): Promise<Record<strin
 
   return photoUrls;
 }
-
-/**
- * Calculate distance using Haversine formula (synchronous, no server action overhead)
- */
-function calculateDistanceHaversine(
-  lat1: number,
-  lon1: number,
-  lat2: number,
-  lon2: number
-): number {
-  const R = 3959; // Earth's radius in miles
-  const dLat = (lat2 - lat1) * (Math.PI / 180);
-  const dLon = (lon2 - lon1) * (Math.PI / 180);
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(lat1 * (Math.PI / 180)) *
-      Math.cos(lat2 * (Math.PI / 180)) *
-      Math.sin(dLon / 2) *
-      Math.sin(dLon / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
-}
-

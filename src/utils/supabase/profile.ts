@@ -24,24 +24,22 @@ export async function getProfileData() {
   return data?.profile_data as profileData | null;
 }
 
-export async function uploadProfileData(data: profileData) {
-  const supabase = await createClient();
-  const userID = await getCurrentUserID();
-
-  // Validate required fields
+function validateProfileData(data: profileData) {
   if (!data.first_name || !data.last_name || !data.age || !data.pronouns || !data.hometown || !data.baseCity) {
     throw new Error("Missing required profile fields: first_name, last_name, age, pronouns, hometown, and baseCity are required");
   }
-
-  // Validate age is a positive number
   if (typeof data.age !== "number" || data.age < 0) {
     throw new Error("Age must be a positive number");
   }
-
-  // Validate interests is an array
   if (!Array.isArray(data.interests)) {
     throw new Error("Interests must be an array");
   }
+}
+
+export async function uploadProfileData(data: profileData) {
+  validateProfileData(data);
+  const supabase = await createClient();
+  const userID = await getCurrentUserID();
 
   const { error } = await supabase
     .from("user_info")
@@ -56,31 +54,14 @@ export async function uploadProfileData(data: profileData) {
     .select()
     .single();
 
-  if (error) {
-    throw error;
-  }
-
+  if (error) throw error;
   return { success: true };
 }
 
 export async function updateProfileData(data: profileData) {
+  validateProfileData(data);
   const supabase = await createClient();
   const userID = await getCurrentUserID();
-
-  // Validate required fields
-  if (!data.first_name || !data.last_name || !data.age || !data.pronouns || !data.hometown || !data.baseCity) {
-    throw new Error("Missing required profile fields: first_name, last_name, age, pronouns, hometown, and baseCity are required");
-  }
-
-  // Validate age is a positive number
-  if (typeof data.age !== "number" || data.age < 0) {
-    throw new Error("Age must be a positive number");
-  }
-
-  // Validate interests is an array
-  if (!Array.isArray(data.interests)) {
-    throw new Error("Interests must be an array");
-  }
 
   const { error } = await supabase
     .from("user_info")
@@ -92,10 +73,7 @@ export async function updateProfileData(data: profileData) {
       { onConflict: "user_id" }
     );
 
-  if (error) {
-    throw error;
-  }
-
+  if (error) throw error;
   return { success: true };
 }
 

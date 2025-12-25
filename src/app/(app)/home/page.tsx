@@ -12,11 +12,9 @@ export default async function HomePage() {
   const profileData = await getProfileData();
   const profilePhotoUrl = await getProfilePhotoUrl();
   const firstName = profileData?.first_name ? String(profileData.first_name) : "there";
-  const fullName = profileData?.first_name && profileData?.last_name 
-    ? `${String(profileData.first_name)} ${String(profileData.last_name)}`
-    : profileData?.first_name 
-    ? String(profileData.first_name)
-    : "there";
+  const fullName = profileData?.first_name && profileData?.last_name
+    ? `${profileData.first_name} ${profileData.last_name}`
+    : firstName;
 
   return (
     <main className="min-h-screen bg-white px-4 py-12 lg:px-8">
@@ -36,11 +34,7 @@ export default async function HomePage() {
 
         {droppedIn ? (
           <DroppedInSearchSection
-            currentUserInterests={
-              profileData?.interests
-                ? profileData.interests.map((interest) => String(interest))
-                : []
-            }
+            currentUserInterests={profileData?.interests?.map(String) || []}
           />
         ) : (
           <ConnectionsPanel />
